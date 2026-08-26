@@ -13,7 +13,7 @@ from langchain_tavily import TavilySearch
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
 
-from .schemas import Task, Plan, EvidenceItem, EvidencePack, RouterDecision, coerce_plan
+from .agents_schemas import Task, Plan, EvidenceItem, EvidencePack, RouterDecision, coerce_plan
 from .states import State
 from .prompts import (
     ROUTER_SYSTEM,

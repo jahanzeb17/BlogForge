@@ -29,7 +29,7 @@ from google.genai import types
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from .schemas import ImagePlanOutput
+from .agents_schemas import ImagePlanOutput
 from .states import State
 from .prompts import DECIDE_IMAGES_SYSTEM
 from .llms import get_llm

@@ -1,6 +1,6 @@
 from typing import TypedDict, List, Optional, Annotated
 import operator
-from .schemas import EvidenceItem, Plan
+from .agents_schemas import EvidenceItem, Plan
 
 
 class State(TypedDict):
