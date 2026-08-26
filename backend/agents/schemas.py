@@ -71,3 +71,22 @@ class ImageSpec(BaseModel):
 
 class ImagePlanOutput(BaseModel):
     images: List[ImageSpec] = Field(default_factory=list)
+
+
+
+
+def coerce_plan(value) -> Optional["Plan"]:
+    """
+    LangGraph's checkpoint serde can round-trip a Pydantic model back into a
+    plain dict on resume (see graph.py's note on 'Deserializing unregistered
+    type'). Any node that reads state["plan"] as an object - not just as a
+    dict - must pass it through this first, since it may be running after a
+    resume rather than in the same invoke() that created the Plan.
+    """
+    if value is None:
+        return None
+    if isinstance(value, Plan):
+        return value
+    if isinstance(value, dict):
+        return Plan(**value)
+    raise TypeError(f"Unexpected type for plan: {type(value)!r}")

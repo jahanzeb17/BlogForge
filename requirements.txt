@@ -8,6 +8,13 @@ langgraph
 fastapi
 pydantic
 langchain_tavily
+python-docx
+markdown
+fpdf2
+langgraph-checkpoint-sqlite
 
 fastapi[standard]
 uvicorn[standard]
+passlib[bcrypt]
+python-jose[cryptography]
+requests

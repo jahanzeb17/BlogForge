@@ -1,5 +1,27 @@
-# --- Virtual Environment ---
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
 venv/
-.venv/
-ENV/
 env/
+.env
+
+# SQLite database
+*.db
+*.sqlite3
+
+# Agent Storage / Run Outputs
+storage/
+backend/storage/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
