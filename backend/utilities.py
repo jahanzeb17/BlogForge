@@ -5,9 +5,9 @@ import json
 from langgraph.types import Command
 from sqlalchemy.orm import Session
 
-from .database import SessionLocal
-from .models import BlogImage, BlogRun
-from .agents.graph import app as blog_graph
+from database import SessionLocal
+from models import BlogImage, BlogRun
+from agents.graph import app as blog_graph
 
 logger = logging.getLogger(__name__)
 

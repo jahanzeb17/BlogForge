@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import init_db
-from backend import crud, auth_endpoints
+from database import init_db
+import crud, auth_endpoints
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlogForge AI Demo Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+    <!-- Top Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2 rounded-lg font-bold text-white tracking-wider">BF</div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">BlogForge FYP</h1>
+            </div>
+            <div id="auth-status" class="text-sm text-slate-400">Not authenticated</div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+
+        <!-- SECTION: AUTHENTICATION (Login / Register) -->
+        <section id="auth-section" class="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+            <h2 id="auth-title" class="text-2xl font-bold mb-6 text-center">Login to BlogForge</h2>
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Username</label>
+                    <input type="text" id="username" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Password</label>
+                    <input type="password" id="password" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition">Login</button>
+            </form>
+            <p class="text-center text-sm text-slate-400 mt-4">
+                <span id="auth-switch-text">Don't have an account?</span> 
+                <button onclick="toggleAuthMode()" id="auth-switch-btn" class="text-indigo-400 hover:underline font-medium ml-1">Register</button>
+            </p>
+        </section>
+
+        <!-- SECTION: MAIN DASHBOARD (Hidden until logged in) -->
+        <div id="dashboard-section" class="hidden grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Create Run & History -->
+            <div class="space-y-6">
+                <!-- Create Blog Form -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <h2 class="text-lg font-bold mb-4 border-b border-slate-800 pb-2">Generate New Blog</h2>
+                    <form id="create-run-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Topic / Prompt</label>
+                            <textarea id="topic-input" rows="3" required placeholder="e.g. Overview of RAG pipelines in enterprise AI..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Audience Preference</label>
+                            <input type="text" id="audience-input" placeholder="e.g. Senior Software Engineers" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Tone Preference</label>
+                            <input type="text" id="tone-input" placeholder="e.g. Technical & Authoritative" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:opacity-90 text-white font-medium py-2 rounded-lg transition shadow-lg">Start Secure Run</button>
+                    </form>
+                </div>
+
+                <!-- Run History List -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold">Your Runs</h2>
+                        <button onclick="loadRuns()" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded">Refresh</button>
+                    </div>
+                    <div id="runs-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Active Run Workspace / Inspector -->
+            <div class="md:col-span-2 space-y-6">
+                <div id="active-run-container" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl min-h-[500px] flex flex-col justify-between">
+                    <div class="text-center text-slate-500 my-auto">
+                        <svg class="w-16 h-16 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <p class="text-lg">Select a run from history or start a new topic to view agent progress and review checkpoints.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:8000";
+        let isRegistering = false;
+        let currentRunId = null;
+        let pollInterval = null;
+
+        function getToken() { return localStorage.getItem("token"); }
+
+        // --- AUTH LOGIC ---
+        function toggleAuthMode() {
+            isRegistering = !isRegistering;
+            document.getElementById("auth-title").innerText = isRegistering ? "Register for BlogForge" : "Login to BlogForge";
+            document.getElementById("auth-btn").innerText = isRegistering ? "Register" : "Login";
+            document.getElementById("auth-switch-text").innerText = isRegistering ? "Already have an account?" : "Don't have an account?";
+            document.getElementById("auth-switch-btn").innerText = isRegistering ? "Login" : "Register";
+        }
+
+        document.getElementById("auth-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            const endpoint = isRegistering ? "/auth/register" : "/auth/login";
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Authentication failed");
+
+                localStorage.setItem("token", data.access_token);
+                checkAuthSession();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
+        function checkAuthSession() {
+            const token = getToken();
+            if (token) {
+                document.getElementById("auth-section").classList.add("hidden");
+                document.getElementById("dashboard-section").classList.remove("hidden");
+                document.getElementById("auth-status").innerHTML = `<span class="text-emerald-400 font-medium">● Connected</span> <button onclick="logout()" class="ml-4 text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300">Logout</button>`;
+                loadRuns();
+            } else {
+                document.getElementById("auth-section").classList.remove("hidden");
+                document.getElementById("dashboard-section").classList.add("hidden");
+                document.getElementById("auth-status").innerText = "Not authenticated";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            if (pollInterval) clearInterval(pollInterval);
+            checkAuthSession();
+        }
+
+        // --- RUNS MANAGEMENT ---
+        document.getElementById("create-run-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById("topic-input").value;
+            const audience_pref = document.getElementById("audience-input").value;
+            const tone_pref = document.getElementById("tone-input").value;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/runs`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ topic, audience_pref, tone_pref })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+
+                document.getElementById("topic-input").value = "";
+                loadRuns();
+                selectRun(data.run_id);
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
+        async function loadRuns() {
+            try {
+                const res = await fetch(`${API_BASE}/api/runs`, {
+                    headers: { "Authorization": `Bearer ${getToken()}` }
+                });
+                const runs = await res.json();
+                const container = document.getElementById("runs-list");
+                container.innerHTML = "";
+
+                if (runs.length === 0) {
+                    container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No runs found.</p>`;
+                    return;
+                }
+
+                runs.forEach(r => {
+                    const statusColor = r.status === 'completed' ? 'text-emerald-400' : r.status === 'interrupted' ? 'text-amber-400' : 'text-indigo-400';
+                    const div = document.createElement("div");
+                    div.className = `p-3 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 cursor-pointer transition ${currentRunId === r.id ? 'border-indigo-500' : ''}`;
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-semibold uppercase ${statusColor}">${r.status}</span>
+                            <span class="text-[10px] text-slate-500">${new Date(r.created_at).toLocaleTimeString()}</span>
+                        </div>
+                        <p class="text-sm font-medium truncate">${r.topic}</p>
+                    `;
+                    div.onclick = () => selectRun(r.id);
+                    container.appendChild(div);
+                });
+            } catch (err) {
+                console.error("Failed to load runs", err);
+            }
+        }
+
+        async function selectRun(runId) {
+            currentRunId = runId;
+            if (pollInterval) clearInterval(pollInterval);
+            await fetchRunDetails();
+            pollInterval = setInterval(fetchRunDetails, 3000); // Poll every 3 seconds
+        }
+
+        async function fetchRunDetails() {
+            if (!currentRunId) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/runs/${currentRunId}`, {
+                    headers: { "Authorization": `Bearer ${getToken()}` }
+                });
+                const run = await res.json();
+                renderRunWorkspace(run);
+                if (run.status === 'completed' || run.status === 'failed') {
+                    clearInterval(pollInterval);
+                }
+            } catch (err) {
+                console.error("Error fetching run details", err);
+            }
+        }
+
+        // --- WORKSPACE & HITL RENDERING ---
+        function renderRunWorkspace(run) {
+            const container = document.getElementById("active-run-container");
+            
+            let html = `
+                <div class="border-b border-slate-800 pb-4 mb-4 flex justify-between items-start">
+                    <div>
+                        <span class="px-2.5 py-1 text-xs font-bold uppercase rounded bg-slate-800 text-indigo-400">${run.status}</span>
+                        <h3 class="text-xl font-bold mt-2">${run.topic}</h3>
+                    </div>
+                    <div class="text-xs text-slate-400 text-right">
+                        <div>Run ID: ${run.id.slice(0,8)}...</div>
+                        <div>As of: ${run.as_of}</div>
+                    </div>
+                </div>
+            `;
+
+            if (run.guardrail_msg) {
+                html += `
+                    <div class="bg-amber-950/40 border border-amber-800/60 p-4 rounded-lg mb-4 text-sm text-amber-200">
+                        <strong>Safety Guardrail Notice:</strong><br>${run.guardrail_msg.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+            }
+
+            // Status: Running or Pending
+            if (run.status === 'pending' || run.status === 'running') {
+                html += `
+                    <div class="text-center py-16 my-auto">
+                        <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+                        <p class="text-slate-400">Pipeline agents are executing tasks (Guardrail → Outline Generation → Research → Drafting)...</p>
+                    </div>
+                `;
+            } 
+            // Status: Interrupted (HITL Checkpoint)
+            else if (run.status === 'interrupted') {
+                if (run.interrupt_type === 'research_plan_review') {
+                    // Outline / Subtopic Review Checkpoint
+                    const queries = run.interrupt_data.queries || [];
+                    html += `
+                        <div class="bg-slate-800/50 border border-indigo-500/40 p-5 rounded-xl space-y-4">
+                            <h4 class="font-bold text-indigo-400 text-lg">HITL Checkpoint: Review & Edit Outline Subtopics</h4>
+                            <p class="text-xs text-slate-400">Our security guardrail has verified your safe topic and generated up to 4 subtopics. You can approve them as-is, edit them (each edit will be safely validated), or skip research.</p>
+                            
+                            <form id="resume-outline-form" class="space-y-3">
+                                <div id="query-inputs" class="space-y-2">
+                                    ${queries.map((q, idx) => `
+                                        <div>
+                                            <label class="text-[10px] uppercase text-slate-400 font-semibold">Subtopic ${idx + 1}</label>
+                                            <input type="text" value="${q}" class="query-input w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="flex space-x-3 pt-2">
+                                    <button type="button" onclick="submitOutlineReview('approve')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded-lg font-medium text-sm transition">Approve & Search</button>
+                                    <button type="button" onclick="submitOutlineReview('edit')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2 rounded-lg font-medium text-sm transition">Save Edits & Search</button>
+                                    <button type="button" onclick="submitOutlineReview('skip_research')" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-medium text-sm transition">Skip Research</button>
+                                </div>
+                            </form>
+                        </div>
+                    `;
+                } else if (run.interrupt_type === 'final_draft_review') {
+                    // Final Draft Review Checkpoint
+                    html += `
+                        <div class="space-y-4">
+                            <h4 class="font-bold text-indigo-400 text-lg">HITL Checkpoint: Final Draft Review</h4>
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl max-h-80 overflow-y-auto text-sm">
+                                ${marked.parse(run.interrupt_data.final_md || "")}
+                            </div>
+                            <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl space-y-3">
+                                <label class="block text-xs uppercase font-semibold text-slate-300">Request Targeted Section Revision</label>
+                                <input type="text" id="revision-instructions" placeholder="e.g. In the introduction section, add a note about container security..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                                <div class="flex space-x-3">
+                                    <button onclick="submitFinalReview('approve')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded-lg font-medium text-sm transition">Approve & Finish</button>
+                                    <button onclick="submitFinalReview('revise')" class="flex-1 bg-amber-600 hover:bg-amber-500 py-2 rounded-lg font-medium text-sm transition">Submit Revision Request</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } 
+            // Status: Completed
+            else if (run.status === 'completed') {
+                html += `
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                            <div>
+                                <h4 class="font-bold text-emerald-400">Blog Generated Successfully</h4>
+                                <p class="text-xs text-slate-400">All research, subtopics, agent writing tasks, and image placements are complete.</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="exportDocx('${run.id}', '${run.topic}')" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition">Download .DOCX</button>
+                                <button onclick="exportPdf('${run.id}', '${run.topic}')" class="bg-cyan-600 hover:bg-cyan-500 text-xs px-3 py-2 rounded-lg font-medium transition">Download .PDF</button>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950 border border-slate-800 p-6 rounded-xl prose prose-invert max-w-none text-slate-200">
+                            ${marked.parse(run.final_markdown || "No content")}
+                        </div>
+                    </div>
+                `;
+            } else if (run.status === 'failed') {
+                html += `
+                    <div class="bg-rose-950/40 border border-rose-800 p-4 rounded-xl text-rose-200 text-sm">
+                        <strong>Run Failed:</strong> ${run.error_message || "Unknown error occurred."}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // --- RESUME ACTIONS ---
+        async function submitOutlineReview(action) {
+            const inputs = document.querySelectorAll(".query-input");
+            const queries = Array.from(inputs).map(i => i.value);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/runs/${currentRunId}/resume`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ action, queries })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                fetchRunDetails();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function submitFinalReview(action) {
+            const instructions = document.getElementById("revision-instructions")?.value || "";
+            try {
+                const res = await fetch(`${API_BASE}/api/runs/${currentRunId}/resume`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ action, instructions })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                fetchRunDetails();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // --- EXPORT HANDLERS ---
+        async function exportDocx(runId, title) {
+            try {
+                const runRes = await fetch(`${API_BASE}/api/runs/${runId}`, { headers: { "Authorization": `Bearer ${getToken()}` } });
+                const runData = await runRes.json();
+                
+                const res = await fetch(`${API_BASE}/api/export/docx`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getToken()}` },
+                    body: JSON.stringify({ markdown: runData.final_markdown, title: title.slice(0, 30) })
+                });
+                const blob = await res.blob();
+                downloadBlob(blob, `${title.slice(0,30)}.docx`);
+            } catch (err) { alert("DOCX export failed"); }
+        }
+
+        async function exportPdf(runId, title) {
+            try {
+                const runRes = await fetch(`${API_BASE}/api/runs/${runId}`, { headers: { "Authorization": `Bearer ${getToken()}` } });
+                const runData = await runRes.json();
+
+                const res = await fetch(`${API_BASE}/api/export/pdf`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getToken()}` },
+                    body: JSON.stringify({ markdown: runData.final_markdown, title: title.slice(0, 30) })
+                });
+                const blob = await res.blob();
+                downloadBlob(blob, `${title.slice(0,30)}.pdf`);
+            } catch (err) { alert("PDF export failed"); }
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        // Initialize session check on load
+        window.onload = checkAuthSession;
+    </script>
+</body>
+</html>

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from .database import get_db
-from .models import User
-from .schemas import TokenResponse, RegisterRequest, LoginRequest
-from .auth import hash_password, create_access_token, verify_password, get_current_user
+from database import get_db
+from models import User
+from schemas import TokenResponse, RegisterRequest, LoginRequest, OAuth2TokenResponse
+from auth import hash_password, create_access_token, verify_password, get_current_user
 
 
 router = APIRouter()
@@ -43,3 +44,19 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/auth/me")
 def me(user: User = Depends(get_current_user)):
     return {"id": user.id, "username": user.username}
+
+
+
+
+
+# ADD THIS NEW ROUTE for Swagger's Authorize button (expects form-data)
+# @router.post("/auth/token", response_model=OAuth2TokenResponse)
+# def login_for_swagger(
+#     form_data: OAuth2PasswordRequestForm = Depends(),
+#     db: Session = Depends(get_db),
+# ):
+#   user = db.query(User).filter(User.username == form_data.username).first()
+#   if not user or not verify_password(form_data.password, user.hashed_password):
+#     raise HTTPException(status_code=401, detail="Invalid credentials")
+#   token = create_access_token({"sub": str(user.id)})
+#   return OAuth2TokenResponse(access_token=token, token_type="bearer")

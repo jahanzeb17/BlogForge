@@ -14,12 +14,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 
-from .config import STORAGE_DIR
-from .database import get_db
-from .models import BlogImage, BlogRun, User
-from .auth import get_current_user
-from .utilities import _resume_graph_task, _run_graph_task
-from .schemas import ResumeRequest, CreateRunRequest
+from config import STORAGE_DIR
+from database import get_db
+from models import BlogImage, BlogRun, User
+from auth import get_current_user
+from utilities import _resume_graph_task, _run_graph_task
+from schemas import ResumeRequest, CreateRunRequest
+from agents.guardrail import guardrail_check
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,17 @@ def create_run(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # ── Initial Gatekeeper Check ──
+    gr = guardrail_check(req.topic)
+    if gr.action == "reject":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Topic Blocked: {gr.reason}"
+        )
+
+    # Since it passed, we use the original topic
+    safe_topic = req.topic 
+
     run_id = str(uuid.uuid4())
     thread_id = str(uuid.uuid4())
     workspace_dir = str(STORAGE_DIR / run_id)
@@ -46,18 +58,19 @@ def create_run(
         id=run_id,
         user_id=user.id,
         thread_id=thread_id,
-        topic=req.topic,
+        topic=safe_topic,
         status="pending",
         as_of=as_of,
         audience_pref=req.audience_pref,
         tone_pref=req.tone_pref,
         blog_kind_pref=req.blog_kind_pref,
+        guardrail_msg=None, # Transformation messages no longer needed
     )
     db.add(run)
     db.commit()
 
     inputs = {
-        "topic": req.topic,
+        "topic": safe_topic,
         "audience_pref": req.audience_pref,
         "tone_pref": req.tone_pref,
         "blog_kind_pref": req.blog_kind_pref,
@@ -133,6 +146,7 @@ def get_run(
         "interrupt_type": run.interrupt_type,
         "interrupt_data": json.loads(run.interrupt_data_json) if run.interrupt_data_json else None,
         "error_message": run.error_message,
+        "guardrail_msg": run.guardrail_msg,
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "updated_at": run.updated_at.isoformat() if run.updated_at else None,
         "images": [
@@ -168,10 +182,35 @@ def resume_run(
         )
 
     resume_value: dict = {"action": req.action}
+    msg_parts = []
+    
+    # ── 1. Evaluate Subtopics ──
     if req.queries is not None:
-        resume_value["queries"] = req.queries
+        safe_queries = []
+        for q in req.queries:
+            gr = guardrail_check(q)
+            if gr.action == "allow":
+                safe_queries.append(q)
+            else:
+                # Add to warning message if blocked
+                msg_parts.append(f"Blocked Subtopic: '{q}'\nReason: {gr.reason}")
+        resume_value["queries"] = safe_queries
+    
+    # ── 2. Evaluate Final Draft Revisions ──
     if req.instructions is not None:
-        resume_value["instructions"] = req.instructions
+        gr = guardrail_check(req.instructions)
+        if gr.action == "allow":
+            resume_value["instructions"] = req.instructions
+        else:
+            msg_parts.append(f"Blocked Revision: '{req.instructions}'\nReason: {gr.reason}")
+            resume_value["instructions"] = "" # Clear the harmful instruction
+    
+    # ── 3. Save Warning to Database for Frontend ──
+    if msg_parts:
+        run.guardrail_msg = "We removed harmful input(s) from your request:\n\n" + "\n\n".join(msg_parts)
+    else:
+        run.guardrail_msg = None
+    db.commit()
 
     workspace_dir = str(STORAGE_DIR / run_id)
     Path(workspace_dir).mkdir(parents=True, exist_ok=True)

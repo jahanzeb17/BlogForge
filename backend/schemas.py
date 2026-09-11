@@ -34,3 +34,12 @@ class ResumeRequest(BaseModel):
     action: str
     queries: Optional[List[str]] = None
     instructions: Optional[str] = None
+
+
+
+
+
+
+class OAuth2TokenResponse(BaseModel):
+  access_token: str
+  token_type: str = "bearer"

@@ -24,13 +24,22 @@ class Plan(BaseModel):
     tasks: List[Task]
 
 
+# class EvidenceItem(BaseModel):
+#     title: str
+#     url: str
+#     published_at: Optional[str] = None  # ISO "YYYY-MM-DD" preferred
+#     snippet: Optional[str] = None
+#     source: Optional[str] = None
+
 class EvidenceItem(BaseModel):
     title: str
     url: str
     published_at: Optional[str] = None  # ISO "YYYY-MM-DD" preferred
     snippet: Optional[str] = None
     source: Optional[str] = None
+    query: Optional[str] = None  # <--- NEW: Tracks which subtopic gathered this evidence
 
+    
 
 class RouterDecision(BaseModel):
     needs_research: bool
@@ -69,10 +78,18 @@ class ImageSpec(BaseModel):
 #     md_with_placeholders: str
 #     images: List[ImageSpec] = Field(default_factory=list)
 
+
+
+# class ImagePlanOutput(BaseModel):
+#     images: List[ImageSpec] = Field(default_factory=list)
+
+
 class ImagePlanOutput(BaseModel):
-    images: List[ImageSpec] = Field(default_factory=list)
-
-
+    images: List[ImageSpec] = Field(
+        default_factory=list,
+        description="Strictly AT MOST 1 key illustrative image for the entire blog post. Do not include multiple images.",
+        max_length=1  # <--- This is the hard programmatic enforcement
+    )
 
 
 def coerce_plan(value) -> Optional["Plan"]:
@@ -90,3 +107,23 @@ def coerce_plan(value) -> Optional["Plan"]:
     if isinstance(value, dict):
         return Plan(**value)
     raise TypeError(f"Unexpected type for plan: {type(value)!r}")
+
+
+
+
+
+class GuardrailResult(BaseModel):
+    action: Literal["allow", "reject"]
+    reason: str = Field(description="If rejected, a brief 1-sentence reason why. If allowed, just output 'safe'.")
+
+
+
+# ==========================================
+# NEW: Outline Schema for the Outline Generator
+# ==========================================
+class OutlineResult(BaseModel):
+    subtopics: List[str] = Field(
+        description="A list of 1 to 4 subtopics based on the main topic.",
+        min_length=1,
+        max_length=4
+    )

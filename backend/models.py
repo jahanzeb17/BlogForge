@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from .database import Base
+from database import Base
 
 
 def _utcnow():
@@ -50,6 +50,7 @@ class BlogRun(Base):
     interrupt_data_json = Column(Text, nullable=True)
 
     error_message = Column(Text, nullable=True)
+    guardrail_msg = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
