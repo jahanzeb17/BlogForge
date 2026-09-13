@@ -7,7 +7,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
 
 # Database
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{PROJECT_ROOT / 'blogforge.db'}")
+# Changed fallback from SQLite to a standard local PostgreSQL URL
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://postgres:1782@localhost:5432/blogforge_db"
+)
 
 # JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "blogforge-dev-secret-change-in-production-xK9pL2mN7qR4")

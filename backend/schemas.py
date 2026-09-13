@@ -1,9 +1,7 @@
-from pydantic import BaseModel
 from typing import Optional, List
 
+from pydantic import BaseModel
 
-
-# ===== Pydantic request / response schemas ================================
 
 class RegisterRequest(BaseModel):
     username: str
@@ -36,10 +34,6 @@ class ResumeRequest(BaseModel):
     instructions: Optional[str] = None
 
 
-
-
-
-
 class OAuth2TokenResponse(BaseModel):
-  access_token: str
-  token_type: str = "bearer"
+    access_token: str
+    token_type: str = "bearer"

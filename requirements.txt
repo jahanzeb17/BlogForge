@@ -19,3 +19,8 @@ passlib[bcrypt]
 python-jose[cryptography]
 requests
 python-multipart
+
+psycopg2-binary 
+psycopg[binary] 
+psycopg-pool
+langgraph-checkpoint-postgres

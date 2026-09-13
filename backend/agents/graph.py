@@ -194,20 +194,50 @@ CHECKPOINT_DB_PATH = os.getenv(
     "BLOGFORGE_CHECKPOINT_DB", str(_PROJECT_ROOT / "blogforge_checkpoints.sqlite")
 )
 
-try:
-    from langgraph.checkpoint.sqlite import SqliteSaver
+# Make sure to import DATABASE_URL from your updated config
+from config import DATABASE_URL 
+from langgraph.checkpoint.memory import MemorySaver
 
+# --- NEW IMPORTS FOR POSTGRES ---
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import ConnectionPool
+
+
+# ---------------------------------------------------------
+# CHECKPOINTER SETUP (PostgreSQL Unified Database)
+# ---------------------------------------------------------
+try:
+    # Keep the custom serializer so LangGraph can serialize your Pydantic schemas
     try:
         from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-        _serde = JsonPlusSerializer(allowed_msgpack_modules=["schemas"])
+        _serde = JsonPlusSerializer(allowed_msgpack_modules=["schemas", "agents_schemas"])
     except Exception:
         _serde = None
 
-    _conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
-    checkpointer = SqliteSaver(_conn, serde=_serde) if _serde else SqliteSaver(_conn)
-    checkpointer.setup()
+    # Configure the connection pool using the same DATABASE_URL as SQLAlchemy
+    connection_kwargs = {
+        "autocommit": True,
+        "prepare_threshold": 0,
+    }
+    pool = ConnectionPool(
+        conninfo=DATABASE_URL, 
+        kwargs=connection_kwargs, 
+        max_size=10
+    )
+    
+    # Initialize the Postgres checkpointer
+    if _serde:
+        checkpointer = PostgresSaver(pool, serde=_serde)
+    else:
+        checkpointer = PostgresSaver(pool)
+        
+    # This automatically creates the checkpoints, writes, and blobs tables in Postgres
+    checkpointer.setup() 
+    print("[graph] Connected to PostgreSQL checkpointer.")
+    
 except Exception as e:
-    print(f"[graph] SqliteSaver unavailable ({e}); falling back to in-memory checkpointing.")
+    print(f"[graph] PostgresSaver unavailable ({e}); falling back to in-memory checkpointing.")
     checkpointer = MemorySaver()
+
 
 app = g.compile(checkpointer=checkpointer)
