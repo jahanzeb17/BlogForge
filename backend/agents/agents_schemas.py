@@ -24,13 +24,6 @@ class Plan(BaseModel):
     tasks: List[Task]
 
 
-# class EvidenceItem(BaseModel):
-#     title: str
-#     url: str
-#     published_at: Optional[str] = None  # ISO "YYYY-MM-DD" preferred
-#     snippet: Optional[str] = None
-#     source: Optional[str] = None
-
 class EvidenceItem(BaseModel):
     title: str
     url: str

@@ -1,0 +1,8 @@
+[project]
+name = "blogforge-api"
+version = "1.0.0"
+description = "BlogForge FastAPI Backend"
+requires-python = ">=3.11"
+
+[tool.fastapi]
+entrypoint = "main:app"

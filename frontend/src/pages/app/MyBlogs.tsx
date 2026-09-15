@@ -16,10 +16,12 @@ export default function MyBlogsPage({
 }) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   useEffect(() => {
     api
       .getRuns()
       .then(setRuns)
+      .catch((e) => setError(e.message || "Unable to load your blogs."))
       .finally(() => setLoading(false));
   }, []);
   if (loading)
@@ -38,6 +40,7 @@ export default function MyBlogsPage({
       </div>
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="max-w-4xl mx-auto space-y-3">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
           {runs.length === 0 ? (
             <EmptyState
               title="No blogs yet"
@@ -59,9 +62,9 @@ export default function MyBlogsPage({
                   navigate({
                     section: "app",
                     page:
-                      r.status === "interrupted"
+                      r.interrupt_type === "research_plan_review"
                         ? "outline-review"
-                        : r.status === "completed"
+                        : r.interrupt_type === "final_draft_review" || r.status === "completed"
                           ? "blog-workspace"
                           : "workflow",
                   });

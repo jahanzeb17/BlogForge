@@ -8,19 +8,14 @@ export default function ActivityPage({
   navigate: NavFn;
 }) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   useEffect(() => {
-    api.getRuns().then(setRuns);
+    api.getRuns().then(setRuns).catch((e) => setError(e.message || "Unable to load activity.")).finally(() => setLoading(false));
   }, []);
-  if (!runs.length)
-    return (
-      <div className="h-full grid place-items-center">
-        {runs.length === 0 ? (
-          <p className="text-sm text-slate-500">No activity yet.</p>
-        ) : (
-          <LoadingSpinner />
-        )}
-      </div>
-    );
+  if (loading) return <div className="h-full grid place-items-center"><LoadingSpinner /></div>;
+  if (error) return <div className="p-8 text-sm text-red-600">{error}</div>;
+  if (!runs.length) return <div className="h-full grid place-items-center"><p className="text-sm text-slate-500">No activity yet.</p></div>;
   return (
     <div className="p-4 sm:p-8">
       <div className="max-w-3xl mx-auto">

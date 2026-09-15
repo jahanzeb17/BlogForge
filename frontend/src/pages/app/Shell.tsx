@@ -159,7 +159,6 @@ export default function AppShell({
             <OutlineReviewPage
               navigate={navigate}
               runId={runId}
-              setRunId={setRunId}
             />
           )}{" "}
           {route.page === "blog-workspace" && runId && (

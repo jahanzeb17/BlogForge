@@ -18,9 +18,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Literal
 
-from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv

@@ -4,6 +4,7 @@ from .agents_schemas import EvidenceItem, Plan
 
 
 class State(TypedDict):
+    run_id: Optional[str]
     topic: str
 
     # user-selected preferences (from the frontend picker buttons).

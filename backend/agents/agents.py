@@ -1,561 +1,11 @@
-# from __future__ import annotations
-
-# import logging
-# import os
-# import re
-# from datetime import date, timedelta
-# from pathlib import Path
-# from typing import Any, Callable, List, Optional, Union
-
-# from langgraph.types import Send, interrupt
-
-# from langchain_tavily import TavilySearch
-# from langchain_core.messages import SystemMessage, HumanMessage
-# from dotenv import load_dotenv
-
-# from .agents_schemas import Task, Plan, EvidenceItem, EvidencePack, RouterDecision, coerce_plan
-# from .states import State
-# from .prompts import (
-#     ROUTER_SYSTEM,
-#     RESEARCH_SYSTEM,
-#     ORCH_SYSTEM,
-#     WORKER_SYSTEM,
-#     REVISE_SECTION_SYSTEM,
-# )
-# from .llms import get_llm
-# from .images import _safe_slug
-
-
-# logger = logging.getLogger(__name__)
-
-# env_path = Path(__file__).resolve().parents[2] / ".env"
-# load_dotenv(dotenv_path=env_path, override=True)
-
-
-# # Domains we bias search toward when looking for up-to-date, credible info:
-# # official docs/blogs, research/academic sources, and reputable technical publishers.
-# CREDIBLE_DOMAINS = [
-#     "arxiv.org",
-#     "scholar.google.com",
-#     "paperswithcode.com",
-#     "openai.com",
-#     "platform.openai.com",
-#     "ai.google.dev",
-#     "deepmind.google",
-#     "developers.google.com",
-#     "docs.anthropic.com",
-#     "anthropic.com",
-#     "huggingface.co",
-#     "atomcamp.com",
-#     "microsoft.com",
-#     "research.google",
-#     "github.com",
-#     "ieee.org",
-#     "acm.org",
-#     "nature.com",
-# ]
-
-
-# # ============================================================
-# # Fix #1: prompt-injection scrubbing for untrusted web content
-# # ============================================================
-# # Web pages are untrusted input. A scraped page (or an SEO/spam page, or a
-# # deliberately crafted one) can contain text aimed at the LLM rather than
-# # the human reader, e.g. "ignore previous instructions and...". We scrub
-# # obvious instruction-like phrases out of anything pulled from the web
-# # BEFORE it ever reaches a prompt, as a first line of defense - on top of
-# # the "treat this as data, not instructions" framing added to the prompts
-# # themselves (see prompts.py / the <untrusted_*> wrapping below).
-# _INJECTION_PATTERNS = [
-#     r"ignore\s+(all|any|the)?\s*(previous|prior|above)\s*instructions",
-#     r"disregard\s+(all|any|the)?\s*(previous|prior|above)\s*(instructions|prompt)",
-#     r"you\s+are\s+now\b",
-#     r"new\s+instructions?\s*:",
-#     r"system\s+prompt",
-#     r"act\s+as\s+(an?|the)\b",
-#     r"forget\s+(everything|all)\s*(above|before)?",
-#     r"</?(system|assistant|user)>",
-# ]
-# _INJECTION_RE = re.compile("|".join(_INJECTION_PATTERNS), re.IGNORECASE)
-
-
-# def _scrub_injection(text: Optional[str]) -> str:
-#     if not text:
-#         return text or ""
-#     return _INJECTION_RE.sub("[redacted: instruction-like text removed]", text)
-
-
-# # ============================================================
-# # Fix #3: resilient structured-output calls
-# # ============================================================
-# def _invoke_structured(
-#     structured_llm,
-#     messages: list,
-#     fallback: Union[Any, Callable[[], Any]],
-#     node_name: str,
-#     retries: int = 2,
-# ):
-#     """
-#     Calls a with_structured_output(...)-wrapped model, retrying if the
-#     response can't be parsed into the schema (common on smaller/free-tier
-#     models). If every attempt fails, returns `fallback` (a value, or a
-#     zero-arg callable producing one) instead of raising - so one bad LLM
-#     response degrades that step gracefully instead of crashing the whole
-#     graph run and losing the user's progress.
-#     """
-#     last_err: Optional[Exception] = None
-#     msgs = list(messages)
-#     for attempt in range(retries + 1):
-#         try:
-#             return structured_llm.invoke(msgs)
-#         except Exception as e:
-#             last_err = e
-#             if attempt < retries:
-#                 msgs = msgs + [
-#                     HumanMessage(
-#                         content=(
-#                             "Your previous response could not be parsed into the "
-#                             "required structured schema. Respond again, strictly "
-#                             "matching the schema, with no extra commentary."
-#                         )
-#                     )
-#                 ]
-#     print(f"[{node_name}] structured output failed after {retries + 1} attempt(s): {last_err}")
-#     return fallback() if callable(fallback) else fallback
-
-
-# def router_node(state: State) -> dict:
-#     llm = get_llm()
-#     decider = llm.with_structured_output(RouterDecision)
-#     decision = _invoke_structured(
-#         decider,
-#         [
-#             SystemMessage(content=ROUTER_SYSTEM),
-#             HumanMessage(content=f"Topic: {state['topic']}\nAs-of date: {state['as_of']}"),
-#         ],
-#         fallback=lambda: RouterDecision(
-#             needs_research=True,
-#             mode="hybrid",
-#             reason="Fallback: router could not produce a valid structured decision.",
-#             queries=[state["topic"]],
-#             max_results_per_query=5,
-#         ),
-#         node_name="router_node",
-#     )
-
-#     if decision.mode == "open_book":
-#         recency_days = 7
-#     elif decision.mode == "hybrid":
-#         recency_days = 45
-#     else:
-#         recency_days = 3650
-
-#     # A small/free-tier model is unreliable at judging "does this topic need
-#     # research" - and the whole point of this tool is grounding on fresh,
-#     # credible sources. So we always research by default; the user can still
-#     # explicitly skip it at the HITL checkpoint below if they want a
-#     # closed-book post.
-#     queries = decision.queries or [state["topic"]]
-
-#     return {
-#         "needs_research": True,
-#         "mode": decision.mode,
-#         "queries": queries,
-#         "recency_days": recency_days,
-#     }
-
-
-# # -----------------------------
-# # 3b) HITL #1 - approve/edit the research plan BEFORE any web search runs
-# # -----------------------------
-# def human_review_research_plan(state: State) -> dict:
-#     """
-#     Pauses the graph and shows the user the proposed research plan
-#     (mode + search queries) before any web search happens.
-
-#     Expected resume payload (sent from the UI via Command(resume=...)):
-#       {"action": "approve"}                    # research runs with the queries as shown
-#       {"action": "edit", "queries": [...]}      # user rewrote the queries, then research runs
-#       {"action": "skip_research"}               # user explicitly wants a closed-book post
-#     """
-#     decision = interrupt(
-#         {
-#             "type": "research_plan_review",
-#             "topic": state["topic"],
-#             "mode": state.get("mode"),
-#             "needs_research": state.get("needs_research"),
-#             "queries": state.get("queries", []),
-#             "recency_days": state.get("recency_days"),
-#         }
-#     ) or {}
-
-#     action = decision.get("action", "approve")
-
-#     if action == "edit":
-#         edited = [q.strip() for q in (decision.get("queries") or []) if q.strip()]
-#         return {"queries": edited, "needs_research": bool(edited)}
-
-#     if action == "skip_research":
-#         return {"needs_research": False, "queries": []}
-
-#     # approve as-is - research runs with the queries already proposed
-#     return {}
-
-
-# def route_next(state: State) -> str:
-#     return "research" if state["needs_research"] else "orchestrator"
-
-# # -----------------------------
-# # 4) Research (Tavily)
-# # -----------------------------
-# def _tavily_search(
-#     query: str,
-#     max_results: int = 5,
-#     include_domains: Optional[List[str]] = None,
-# ) -> List[dict]:
-#     if not os.getenv("TAVILY_API_KEY"):
-#         return []
-#     try:
-#         kwargs = {"max_results": max_results}
-#         if include_domains:
-#             kwargs["include_domains"] = include_domains
-#         tool = TavilySearch(**kwargs)
-#         results = tool.invoke({"query": query})
-#         out: List[dict] = []
-#         for r in results or []:
-#             out.append(
-#                 {
-#                     "title": _scrub_injection((r.get("title") or "")[:300]),
-#                     "url": r.get("url") or "",
-#                     "snippet": _scrub_injection((r.get("content") or r.get("snippet") or "")[:600]),
-#                     "published_at": r.get("published_date") or r.get("published_at"),
-#                     "source": r.get("source"),
-#                 }
-#             )
-#         return out
-#     except Exception:
-#         return []
-
-# def _iso_to_date(s: Optional[str]) -> Optional[date]:
-#     if not s:
-#         return None
-#     try:
-#         return date.fromisoformat(s[:10])
-#     except Exception:
-#         return None
-
-
-
-# def research_node(state: State) -> dict:
-#     queries = (state.get("queries") or [])[:10]
-#     raw: List[dict] = []
-#     seen_urls = set()
-
-#     for q in queries:
-#         # Pass 1: bias toward credible/authoritative domains.
-#         for r in _tavily_search(q, max_results=4, include_domains=CREDIBLE_DOMAINS):
-#             if r["url"] and r["url"] not in seen_urls:
-#                 seen_urls.add(r["url"])
-#                 raw.append(r)
-#         # Pass 2: general web, to fill gaps credible-only search misses.
-#         for r in _tavily_search(q, max_results=3):
-#             if r["url"] and r["url"] not in seen_urls:
-#                 seen_urls.add(r["url"])
-#                 raw.append(r)
-
-#     if not raw:
-#         return {"evidence": []}
-
-#     # Keep the raw payload bounded so we don't blow the extractor's context.
-#     raw = raw[:60]
-
-#     llm = get_llm()
-#     extractor = llm.with_structured_output(EvidencePack)
-#     pack = _invoke_structured(
-#         extractor,
-#         [
-#             SystemMessage(content=RESEARCH_SYSTEM),
-#             HumanMessage(
-#                 content=(
-#                     f"As-of date: {state['as_of']}\n"
-#                     f"Recency days: {state['recency_days']}\n\n"
-#                     f"Raw results:\n{raw}"
-#                 )
-#             ),
-#         ],
-#         fallback=lambda: EvidencePack(evidence=[]),
-#         node_name="research_node",
-#     )
-
-#     dedup = {}
-#     for e in pack.evidence:
-#         if e.url:
-#             dedup[e.url] = e
-#     evidence = list(dedup.values())
-
-#     if state.get("mode") == "open_book":
-#         as_of = date.fromisoformat(state["as_of"])
-#         cutoff = as_of - timedelta(days=int(state["recency_days"]))
-#         evidence = [e for e in evidence if (d := _iso_to_date(e.published_at)) and d >= cutoff]
-
-#     return {"evidence": evidence}
-
-
-
-# def orchestrator_node(state: State) -> dict:
-#     llm = get_llm()
-#     planner = llm.with_structured_output(Plan)
-#     mode = state.get("mode", "closed_book")
-#     evidence = state.get("evidence", [])
-
-#     audience_pref = (state.get("audience_pref") or "").strip() or None
-#     tone_pref = (state.get("tone_pref") or "").strip() or None
-#     blog_kind_pref = (state.get("blog_kind_pref") or "").strip() or None
-
-#     # A user-picked blog_kind wins outright; otherwise open_book topics are
-#     # still auto-forced into a news roundup.
-#     forced_kind = blog_kind_pref or ("news_roundup" if mode == "open_book" else None)
-
-#     pref_lines = []
-#     if audience_pref:
-#         pref_lines.append(f"Required audience (must match exactly): {audience_pref}")
-#     if tone_pref:
-#         pref_lines.append(f"Required tone (must match exactly): {tone_pref}")
-#     if forced_kind:
-#         pref_lines.append(f"Required blog_kind (must match exactly): {forced_kind}")
-#     pref_text = ("\n".join(pref_lines) + "\n") if pref_lines else ""
-
-#     plan = _invoke_structured(
-#         planner,
-#         [
-#             SystemMessage(content=ORCH_SYSTEM),
-#             HumanMessage(
-#                 content=(
-#                     f"Topic: {state['topic']}\n"
-#                     f"Mode: {mode}\n"
-#                     f"As-of: {state['as_of']} (recency_days={state['recency_days']})\n"
-#                     f"{pref_text}\n"
-#                     f"Evidence:\n{[e.model_dump() for e in evidence][:16]}"
-#                 )
-#             ),
-#         ],
-#         fallback=lambda: Plan(
-#             blog_title=(state["topic"][:120] or "Untitled Post"),
-#             audience=audience_pref or "General technical readers",
-#             tone=tone_pref or "Clear and informative",
-#             blog_kind=forced_kind or "explainer",
-#             constraints=["Fallback plan: outline LLM call failed after retries; single section only."],
-#             tasks=[
-#                 Task(
-#                     id=1,
-#                     title=(state["topic"][:80] or "Overview"),
-#                     goal="Give the reader a clear, accurate overview of the topic.",
-#                     bullets=["Define the topic", "Explain why it matters", "Summarize the key points"],
-#                     target_words=400,
-#                     tags=[],
-#                     requires_research=bool(evidence),
-#                     requires_citations=bool(evidence),
-#                     requires_code=False,
-#                 )
-#             ],
-#         ),
-#         node_name="orchestrator_node",
-#     )
-
-#     # Don't rely on a small/free-tier model to have actually followed the
-#     # instruction - force the exact values the user picked in the UI.
-#     if forced_kind:
-#         plan.blog_kind = forced_kind
-#     if audience_pref:
-#         plan.audience = audience_pref
-#     if tone_pref:
-#         plan.tone = tone_pref
-
-#     return {"plan": plan}
-
-
-# # -----------------------------
-# # 6) Fanout
-# # -----------------------------
-# def fanout(state: State):
-#     assert state["plan"] is not None
-#     return [
-#         Send(
-#             "worker",
-#             {
-#                 "task": task.model_dump(),
-#                 "topic": state["topic"],
-#                 "mode": state["mode"],
-#                 "as_of": state["as_of"],
-#                 "recency_days": state["recency_days"],
-#                 "plan": state["plan"].model_dump(),
-#                 "evidence": [e.model_dump() for e in state.get("evidence", [])],
-#             },
-#         )
-#         for task in state["plan"].tasks
-#     ]
-
-
-
-# def worker_node(payload: dict) -> dict:
-#     """Write one blog section. Wrapped in try/except so a single failed
-#     worker doesn't crash the entire fanout — it returns a placeholder instead."""
-#     task = Task(**payload["task"])
-#     try:
-#         plan = Plan(**payload["plan"])
-#         evidence = [EvidenceItem(**e) for e in payload.get("evidence", [])]
-
-#         bullets_text = "\n- " + "\n- ".join(task.bullets)
-#         evidence_text = "\n".join(
-#             f"- {e.title} | {e.url} | {e.published_at or 'date:unknown'}"
-#             for e in evidence[:20]
-#         )
-
-#         llm = get_llm()
-#         section_md = llm.invoke(
-#             [
-#                 SystemMessage(content=WORKER_SYSTEM),
-#                 HumanMessage(
-#                     content=(
-#                         f"Blog title: {plan.blog_title}\n"
-#                         f"Audience: {plan.audience}\n"
-#                         f"Tone: {plan.tone}\n"
-#                         f"Blog kind: {plan.blog_kind}\n"
-#                         f"Constraints: {plan.constraints}\n"
-#                         f"Topic: {payload['topic']}\n"
-#                         f"Mode: {payload.get('mode')}\n"
-#                         f"As-of: {payload.get('as_of')} (recency_days={payload.get('recency_days')})\n\n"
-#                         f"Section title: {task.title}\n"
-#                         f"Goal: {task.goal}\n"
-#                         f"Target words: {task.target_words}\n"
-#                         f"Tags: {task.tags}\n"
-#                         f"requires_research: {task.requires_research}\n"
-#                         f"requires_citations: {task.requires_citations}\n"
-#                         f"requires_code: {task.requires_code}\n"
-#                         f"Bullets:{bullets_text}\n\n"
-#                         f"Evidence (ONLY cite these URLs):\n{evidence_text}\n"
-#                     )
-#                 ),
-#             ]
-#         ).content.strip()
-
-#         return {"sections": [(task.id, section_md)]}
-
-#     except Exception as e:
-#         logger.error("worker_node failed for task %s (%s): %s", task.id, task.title, e)
-#         placeholder = (
-#             f"## {task.title}\n\n"
-#             f"> **This section could not be generated** (worker error). "
-#             f"Please retry or edit manually.\n"
-#         )
-#         return {"sections": [(task.id, placeholder)]}
-
-# # ============================================================
-# # 8) merge_content - joins worker sections + a References list from
-# #    evidence into one document. Image placement (decide_images,
-# #    generate_and_place_images) lives in images.py; graph.py wires the
-# #    two together into the reducer subgraph.
-# # ============================================================
-# def merge_content(state: State) -> dict:
-#     plan = state["plan"]
-#     if plan is None:
-#         raise ValueError("merge_content called without plan.")
-#     ordered_sections = [md for _, md in sorted(state["sections"], key=lambda x: x[0])]
-#     body = "\n\n".join(ordered_sections).strip()
-
-#     # Surface every source link used during research directly in the post,
-#     # so "bring the links along" is satisfied even if a worker forgot one.
-#     evidence = state.get("evidence", []) or []
-#     refs_md = ""
-#     if evidence:
-#         lines = []
-#         for e in evidence:
-#             title = (e.title or e.url).strip()
-#             date_str = f" — {e.published_at}" if e.published_at else ""
-#             lines.append(f"- [{title}]({e.url}){date_str}")
-#         refs_md = "\n\n## References\n\n" + "\n".join(lines) + "\n"
-
-#     merged_md = f"# {plan.blog_title}\n\n{body}\n{refs_md}"
-#     return {"merged_md": merged_md}
-
-
-# # -----------------------------
-# # 8b) HITL #2 - approve the final draft, or request a targeted section edit
-# # -----------------------------
-# def human_review_final_draft(state: State) -> dict:
-#     """
-#     Pauses the graph with the finished draft. Resume payload:
-#       {"action": "approve"}
-#       {"action": "revise", "instructions": "In the ## Intro section, ..."}
-#     """
-#     decision = interrupt(
-#         {
-#             "type": "final_draft_review",
-#             "final_md": state.get("final", ""),
-#         }
-#     ) or {}
-
-#     action = decision.get("action", "approve")
-#     if action == "revise":
-#         return {"revision_request": (decision.get("instructions") or "").strip()}
-#     return {"revision_request": None}
-
-
-# def route_after_final_review(state: State) -> str:
-#     return "revise" if state.get("revision_request") else "end"
-
-
-
-# def revise_section_node(state: State) -> dict:
-#     """
-#     Rewrites ONLY the section the user pointed at, leaving everything else
-#     in the markdown untouched, then loops back to human_review_final_draft.
-#     """
-#     instruction = state.get("revision_request") or ""
-#     current_md = state.get("final", "") or state.get("merged_md", "")
-#     coerce_plan(state.get("plan"))  # validate — may be a dict after a checkpoint resume
-
-#     llm = get_llm()
-#     updated = llm.invoke(
-#         [
-#             SystemMessage(content=REVISE_SECTION_SYSTEM),
-#             HumanMessage(
-#                 content=(
-#                     f"Current full blog markdown:\n\n{current_md}\n\n"
-#                     f"User revision instruction (identifies the target section):\n{instruction}\n"
-#                 )
-#             ),
-#         ]
-#     ).content.strip()
-
-#     return {"final": updated, "revision_request": None}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import logging
 import os
 import re
-from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union, Literal
+from typing import Any, Callable, List, Optional, Union
 
-from pydantic import BaseModel
 
 from langgraph.types import Send, interrupt
 
@@ -564,8 +14,6 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 
-# ### CHANGED: Kept your original schema imports, but added standard fallback types
-# assuming these exist in your .agents_schemas, .states, .prompts, .llms files.
 from .agents_schemas import Task, Plan, EvidenceItem, EvidencePack, OutlineResult,RouterDecision, coerce_plan
 from .states import State
 from .prompts import (
@@ -577,6 +25,7 @@ from .prompts import (
 from .llms import get_llm
 from .guardrail import guardrail_check
 from .agents_schemas import GuardrailResult
+from workflow import mark_workflow_step
 
 logger = logging.getLogger(__name__)
 
@@ -637,11 +86,13 @@ def _invoke_structured(
 
 def topic_guardrail_node(state: State) -> dict:
     """Node 1: Topic is already validated by FastAPI, just pass it through."""
-    return {"topic": state["topic"]}
+    mark_workflow_step(state.get("run_id"), "guardrail")
+    return {"topic": state["topic"], "workflow_step": "guardrail"}
 
 
 def outline_generator_node(state: State) -> dict:
     """Node 2: Generates max 4 subtopics from the safe topic."""
+    mark_workflow_step(state.get("run_id"), "outline")
     llm = get_llm()
     outline_llm = llm.with_structured_output(OutlineResult)
     
@@ -660,6 +111,7 @@ def outline_generator_node(state: State) -> dict:
     return {
         "queries": decision.subtopics,
         "needs_research": True,
+        "workflow_step": "outline",
         "mode": "hybrid",
         "recency_days": 45
     }
@@ -667,6 +119,7 @@ def outline_generator_node(state: State) -> dict:
 
 def human_review_outline_node(state: State) -> dict:
     """Node 3: HITL Checkpoint. User reviews/edits the 4 subtopics."""
+    mark_workflow_step(state.get("run_id"), "outline-review")
     decision = interrupt(
         {
             "type": "research_plan_review",
@@ -689,7 +142,8 @@ def human_review_outline_node(state: State) -> dict:
 
 def subtopic_guardrail_node(state: State) -> dict:
     """Node 4: Subtopics were already validated by FastAPI before resume. Pass through."""
-    return {"queries": state.get("queries", [])}
+    mark_workflow_step(state.get("run_id"), "safety")
+    return {"queries": state.get("queries", []), "workflow_step": "safety"}
 
 
 
@@ -717,54 +171,12 @@ def _tavily_search(query: str, max_results: int = 5, include_domains: Optional[L
         return []
 
 
-# def research_node(state: State) -> dict:
-#     """Node 5: Scrapes the web based on the safe subtopics."""
-#     if not state.get("needs_research"):
-#         return {"evidence": []}
-        
-#     queries = (state.get("queries") or [])[:4] # Enforce max 4
-#     raw: List[dict] = []
-#     seen_urls = set()
-#     CREDIBLE_DOMAINS = ["arxiv.org", "scholar.google.com", "github.com", "ieee.org"]
-
-#     for q in queries:
-#         # Append safety terms for the SEARCH API only, so we get educational results
-#         search_q = f"{q} technical educational overview"
-        
-#         for r in _tavily_search(search_q, max_results=3, include_domains=CREDIBLE_DOMAINS):
-#             if r["url"] and r["url"] not in seen_urls:
-#                 seen_urls.add(r["url"])
-#                 raw.append(r)
-#         for r in _tavily_search(search_q, max_results=2):
-#             if r["url"] and r["url"] not in seen_urls:
-#                 seen_urls.add(r["url"])
-#                 raw.append(r)
-
-#     if not raw:
-#         return {"evidence": []}
-
-#     raw = raw[:30] # Bounded for context limits
-#     llm = get_llm()
-#     extractor = llm.with_structured_output(EvidencePack)
-    
-#     pack = _invoke_structured(
-#         extractor,
-#         [
-#             SystemMessage(content=RESEARCH_SYSTEM),
-#             HumanMessage(content=f"Raw results:\n{raw}")
-#         ],
-#         fallback=lambda: EvidencePack(evidence=[]),
-#         node_name="research_node",
-#     )
-
-#     dedup = {e.url: e for e in pack.evidence if e.url}
-#     return {"evidence": list(dedup.values())}
-
 
 def research_node(state: State) -> dict:
     """Node 5: Scrapes the web and scopes evidence strictly to each safe subtopic."""
+    mark_workflow_step(state.get("run_id"), "research")
     if not state.get("needs_research"):
-        return {"evidence": []}
+        return {"evidence": [], "workflow_step": "research"}
         
     queries = (state.get("queries") or [])[:4] # Enforce max 4
     all_scoped_evidence = []
@@ -814,6 +226,7 @@ def research_node(state: State) -> dict:
 
 def orchestrator_node(state: State) -> dict:
     """Node 6: Plans the blog based on the research evidence."""
+    mark_workflow_step(state.get("run_id"), "research-plan")
     llm = get_llm()
     planner = llm.with_structured_output(Plan)
     evidence = state.get("evidence", [])
@@ -841,18 +254,6 @@ def orchestrator_node(state: State) -> dict:
 
 
 
-# def fanout(state: State):
-#     """Node 7 (Edge): Spawns a worker for each task in the plan."""
-#     return [
-#         Send("worker", {
-#             "task": task.model_dump(),
-#             "topic": state["topic"],
-#             "plan": state["plan"].model_dump(),
-#             "evidence": [e.model_dump() for e in state.get("evidence", [])],
-#         })
-#         for task in state["plan"].tasks
-#     ]
-
 def fanout(state: State):
     """Node 7 (Edge): Spawns a worker for each task with strictly scoped evidence."""
     all_evidence = state.get("evidence", [])
@@ -875,33 +276,17 @@ def fanout(state: State):
                 "topic": state["topic"],
                 "plan": state["plan"].model_dump(),
                 "evidence": scoped_evidence, # Only scoped evidence sent to this worker!
+                "run_id": state.get("run_id"),
             })
         )
         
     return tasks_payload
 
 
-# def worker_node(payload: dict) -> dict:
-#     """Node 8 (Parallel): Generates a specific blog section."""
-#     task = Task(**payload["task"])
-#     try:
-#         plan = Plan(**payload["plan"])
-#         evidence = [EvidenceItem(**e) for e in payload.get("evidence", [])]
-#         evidence_text = "\n".join(f"- {e.title} | {e.url}" for e in evidence[:20])
-
-#         llm = get_llm()
-#         section_md = llm.invoke([
-#             SystemMessage(content=WORKER_SYSTEM),
-#             HumanMessage(content=f"Title: {task.title}\nGoal: {task.goal}\nEvidence: {evidence_text}")
-#         ]).content.strip()
-
-#         return {"sections": [(task.id, section_md)]}
-#     except Exception as e:
-#         logger.error(f"worker_node failed: {e}")
-#         return {"sections": [(task.id, f"## {task.title}\n\n> Generation failed. Please edit manually.\n")]}
 
 def worker_node(payload: dict) -> dict:
     """Node 8 (Parallel): Generates a specific blog section strictly mapped to its task title."""
+    mark_workflow_step(payload.get("run_id"), "writing")
     task = Task(**payload["task"])
     try:
         plan = Plan(**payload["plan"])
@@ -928,6 +313,7 @@ def worker_node(payload: dict) -> dict:
 
 def merge_content(state: State) -> dict:
     """Node 9: Merges parallel worker sections into one markdown string."""
+    mark_workflow_step(state.get("run_id"), "merge")
     ordered_sections = [md for _, md in sorted(state["sections"], key=lambda x: x[0])]
     body = "\n\n".join(ordered_sections).strip()
 
@@ -938,11 +324,12 @@ def merge_content(state: State) -> dict:
         refs_md = "\n\n## References\n\n" + "\n".join(lines) + "\n"
 
     merged_md = f"# {state['plan'].blog_title}\n\n{body}\n{refs_md}"
-    return {"merged_md": merged_md, "final": merged_md}
+    return {"merged_md": merged_md, "final": merged_md, "workflow_step": "merge"}
 
 
 def human_review_final_draft(state: State) -> dict:
     """Node 10: HITL Checkpoint for final reading."""
+    mark_workflow_step(state.get("run_id"), "final-review")
     decision = interrupt({
         "type": "final_draft_review",
         "final_md": state.get("final", ""),
@@ -955,26 +342,170 @@ def human_review_final_draft(state: State) -> dict:
 
 
 
+# ============================================================
+# Final HITL: deterministic, section-isolated revision helpers
+# ============================================================
+def _markdown_sections(markdown: str) -> list[tuple[str, str, str]]:
+    """Return top-level ``##`` sections as (heading, full_text, body).
+
+    The returned full_text includes the original heading and all content up to
+    (but not including) the next top-level ``##`` heading. ``#`` title text and
+    ``## References`` are intentionally not treated as ordinary revision
+    targets by the resolver.
+    """
+    if not markdown:
+        return []
+
+    matches = list(re.finditer(r"(?m)^(##)\s+([^#].*?)\s*$", markdown))
+    sections: list[tuple[str, str, str]] = []
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(markdown)
+        full_text = markdown[start:end]
+        heading = match.group(2).strip()
+        body = full_text[match.end() - start:]
+        sections.append((heading, full_text, body))
+    return sections
+
+
+def _normalize_section_name(value: str) -> str:
+    value = re.sub(r"^#+\s*", "", value or "")
+    value = re.sub(r"^section\s*(?:number\s*)?\d+\s*[:.-]?\s*", "", value, flags=re.I)
+    value = re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+    return value
+
+
+def _resolve_revision_section(markdown: str, instruction: str) -> tuple[int, str, str, str]:
+    """Resolve one concrete ``##`` section from a human revision instruction.
+
+    Resolution is deterministic: explicit section numbers are preferred, then
+    exact heading matches, then a unique heading phrase match. References are
+    never selected as a normal revision target.
+    """
+    sections = [s for s in _markdown_sections(markdown)
+                if _normalize_section_name(s[0]) != "references"]
+    if not sections:
+        raise ValueError("The current blog does not contain any editable sections.")
+
+    text = instruction.strip()
+    if not text:
+        raise ValueError("A revision instruction is required.")
+
+    # Explicit forms: "section 3", "section #3", "section number 3".
+    number_match = re.search(r"\bsection\s*(?:number\s*)?#?\s*(\d+)\b", text, flags=re.I)
+    if number_match:
+        number = int(number_match.group(1))
+        if 1 <= number <= len(sections):
+            heading, full_text, body = sections[number - 1]
+            return number - 1, heading, full_text, body
+        raise ValueError(f"Section {number} does not exist. The blog has {len(sections)} editable sections.")
+
+    normalized_instruction = _normalize_section_name(text)
+    candidates: list[tuple[int, str, str, str]] = []
+
+    for index, (heading, full_text, body) in enumerate(sections):
+        normalized_heading = _normalize_section_name(heading)
+        if normalized_heading and normalized_heading in normalized_instruction:
+            candidates.append((index, heading, full_text, body))
+        elif normalized_instruction and normalized_instruction in normalized_heading:
+            candidates.append((index, heading, full_text, body))
+
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        # Prefer the longest heading match; this avoids short generic words
+        # accidentally selecting multiple sections.
+        candidates.sort(key=lambda item: len(_normalize_section_name(item[1])), reverse=True)
+        top = candidates[0]
+        if len(_normalize_section_name(top[1])) > len(_normalize_section_name(candidates[1][1])):
+            return top
+
+    # Common UI phrasing: "Introduction: simplify..." / "Conclusion - ...".
+    for index, (heading, full_text, body) in enumerate(sections):
+        if re.search(rf"\b{re.escape(heading)}\b", text, flags=re.I):
+            return index, heading, full_text, body
+
+    raise ValueError(
+        "Could not identify the section to revise. Specify a section number "
+        "(for example, 'Revise section 3') or the section heading."
+    )
+
+
+def _replace_markdown_section(markdown: str, old_full_text: str, new_full_text: str) -> str:
+    """Replace exactly one previously extracted section, preserving everything else."""
+    first = markdown.find(old_full_text)
+    if first < 0:
+        raise ValueError("The target section changed before revision could be applied.")
+    second = markdown.find(old_full_text, first + 1)
+    if second >= 0:
+        raise ValueError("The target section text is not unique; refusing an unsafe replacement.")
+    return markdown[:first] + new_full_text + markdown[first + len(old_full_text):]
+
+
+def _clean_revised_section(
+    raw: str, original_heading: str, original_section: str = ""
+) -> str:
+    """Normalize an LLM response into exactly one ``##`` section.
+
+    The original section's trailing whitespace is preserved so replacing the
+    target does not accidentally reformat the boundary before the next section.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        raise ValueError("The revision model returned an empty section.")
+
+    # The model is asked for only the section, but tolerate a leading heading.
+    heading_match = re.match(r"^##\s+(.+?)\s*(?:\n|$)", raw)
+    if heading_match:
+        raw_body = raw[heading_match.end():].lstrip("\n")
+    else:
+        first_line, _, remainder = raw.partition("\n")
+        if re.match(r"^#{1,6}\s+", first_line):
+            raw_body = remainder.lstrip("\n")
+        else:
+            raw_body = raw
+
+    # A revision must not accidentally create another top-level section.
+    if re.search(r"(?m)^##\s+", raw_body):
+        raise ValueError("The revision model returned another top-level section; refusing the revision.")
+
+    trailing_match = re.search(r"(\n[ \t]*)\Z", original_section or "")
+    trailing = trailing_match.group(1) if trailing_match else "\n"
+    return f"## {original_heading}\n\n{raw_body.strip()}{trailing}"
+
+
 def revise_section_node(state: State) -> dict:
-    """Node 11: Targeted rewrites if human rejects final draft."""
-    instruction = state.get("revision_request") or ""
-    current_md = state.get("final", "")
-    
+    """Node 11: Revise exactly one requested section and preserve all others."""
+    mark_workflow_step(state.get("run_id"), "final-review")
+    instruction = (state.get("revision_request") or "").strip()
+    current_md = state.get("final") or state.get("merged_md") or ""
+
+    section_index, heading, original_section, original_body = _resolve_revision_section(
+        current_md, instruction
+    )
+
     llm = get_llm()
-    updated = llm.invoke([
+    revised_raw = llm.invoke([
         SystemMessage(content=REVISE_SECTION_SYSTEM),
         HumanMessage(content=(
-            f"Current full markdown document:\n{current_md}\n\n"
-            f"User Revision Instruction:\n{instruction}\n\n"
-            f"CRITICAL RULES:\n"
-            f"1. You MUST output the ENTIRE markdown document from start to finish.\n"
-            f"2. ONLY apply the user's instruction to the specific section they mentioned.\n"
-            f"3. DO NOT rewrite, summarize, or change the tone of ANY other section.\n"
-            f"4. Keep all original formatting and markdown intact."
+            f"Blog section number: {section_index + 1}\n"
+            f"Exact section heading: ## {heading}\n\n"
+            f"Current section only:\n{original_section}\n\n"
+            f"User revision instruction:\n{instruction}\n\n"
+            "Return ONLY the revised content for this one section. Do not return "
+            "the blog title, other sections, References, or commentary. Keep the "
+            "section heading as exactly provided above."
         ))
-    ]).content.strip()
+    ]).content
 
-    return {"final": updated, "revision_request": None}
+    revised_section = _clean_revised_section(revised_raw, heading, original_section)
+    updated = _replace_markdown_section(current_md, original_section, revised_section)
+
+    return {
+        "final": updated,
+        "merged_md": updated,
+        "revision_request": None,
+    }
 
 
 

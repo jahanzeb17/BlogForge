@@ -19,6 +19,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const message = typeof data === 'object' && data && 'detail' in data ? String(data.detail) : `Request failed (${response.status})`
     const error = new Error(message) as ApiError
     error.status = response.status
+    if (response.status === 401) window.dispatchEvent(new Event("blogforge:unauthorized"))
     throw error
   }
   return data as T
@@ -26,11 +27,29 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export interface User { id: number; username: string; is_admin: boolean }
 export interface AuthResponse { access_token: string; token_type: string; user_id: number; username: string }
-export interface RunSummary { id: string; topic: string; status: string; created_at: string | null; updated_at: string | null }
+export type RunStatus = "pending" | "running" | "interrupted" | "completed" | "failed"
+export type WorkflowStepId = "guardrail" | "outline" | "outline-review" | "safety" | "research" | "research-plan" | "writing" | "merge" | "image-plan" | "image-gen" | "final-review" | "final-blog"
+export interface RunSummary { id: string; topic: string; status: RunStatus; created_at: string | null; updated_at: string | null; interrupt_type: string | null; workflow_step: WorkflowStepId | null }
+export interface AdminMetrics {
+  total_users: number;
+  total_blogs_generated: number;
+  status_breakdown: Record<RunStatus, number>;
+  system_health: string;
+}
+export interface AdminRun {
+  run_id: string; user_id: number; username: string; topic: string; status: RunStatus;
+  error_message: string | null; created_at: string | null; updated_at: string | null;
+}
+export interface AdminUser {
+  user_id: number; username: string; is_admin: boolean; total_blogs_created: number; joined_at: string | null;
+}
+export interface AuditLog {
+  run_id: string; user_id: number; username: string; topic_attempted: string; guardrail_message: string; timestamp: string | null;
+}
 export interface RunDetail extends RunSummary {
   as_of: string | null; audience_pref: string | null; tone_pref: string | null; blog_kind_pref: string | null
   plan: any; evidence: any[] | null; final_markdown: string | null; image_specs: any[] | null
-  interrupt_type: string | null; interrupt_data: any; error_message: string | null; guardrail_msg: string | null
+  interrupt_data: any; error_message: string | null; guardrail_msg: string | null
   images: { filename: string; alt_text?: string; caption?: string }[]
 }
 
@@ -43,19 +62,34 @@ export const api = {
   getRun: (id: string) => request<RunDetail>(`/api/runs/${id}`),
   resumeRun: (id: string, payload: { action: string; queries?: string[]; instructions?: string }) => request<{ run_id: string; status: string }>(`/api/runs/${id}/resume`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteRun: (id: string) => request<{ detail: string }>(`/api/runs/${id}`, { method: 'DELETE' }),
-  export: async (format: 'pdf' | 'docx', markdown: string, title: string) => {
-    const blob = await request<Blob>(`/api/export/${format}`, { method: 'POST', body: JSON.stringify({ markdown, title }) })
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${title || 'BlogForge-export'}.${format}`; a.click(); URL.revokeObjectURL(url)
+  export: async (format: "pdf" | "docx", markdown: string, title: string) => {
+    const blob = await request<Blob>(`/api/export/${format}`, { method: "POST", body: JSON.stringify({ markdown, title }) })
+    const safeTitle = (title || "BlogForge-export")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^\.+|\.+$/g, "") || "BlogForge-export"
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${safeTitle}.${format}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   },
   imageUrl: (runId: string, filename: string) => `${API_URL}/api/runs/${runId}/images/${encodeURIComponent(filename)}`,
   admin: {
-    metrics: () => request<any>('/api/admin/metrics'),
-    runs: (status?: string) => request<any[]>(`/api/admin/runs${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-    users: () => request<any[]>('/api/admin/users'),
-    auditLogs: () => request<any[]>('/api/admin/audit-logs'),
+    metrics: () => request<AdminMetrics>('/api/admin/metrics'),
+    runs: (status?: RunStatus) => request<AdminRun[]>(`/api/admin/runs${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+    users: () => request<AdminUser[]>('/api/admin/users'),
+    auditLogs: () => request<AuditLog[]>('/api/admin/audit-logs'),
   },
 }
 
 export function saveToken(token: string) { localStorage.setItem('blogforge_token', token) }
-export function clearToken() { localStorage.removeItem('blogforge_token') }
+export function clearToken() { localStorage.removeItem("blogforge_token") }
+export function getStoredRunId() { return localStorage.getItem("blogforge_run_id") }
+export function saveRunId(id: string) { localStorage.setItem("blogforge_run_id", id) }
+export function clearRunId() { localStorage.removeItem("blogforge_run_id") }
 export { API_URL }

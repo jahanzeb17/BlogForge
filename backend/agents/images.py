@@ -33,6 +33,7 @@ from .agents_schemas import ImagePlanOutput
 from .states import State
 from .prompts import DECIDE_IMAGES_SYSTEM
 from .llms import get_llm
+from workflow import mark_workflow_step
 
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,7 @@ def _parse_image_size(size_str: Optional[str], default: tuple = (1024, 768)) -> 
 # Graph node: decide whether/where images belong, and inject placeholders
 # ============================================================
 def decide_images(state: State) -> dict:
+    mark_workflow_step(state.get("run_id"), "image-plan")
     llm = get_llm()
     planner = llm.with_structured_output(ImagePlanOutput)
     merged_md = state["merged_md"]
@@ -280,6 +282,7 @@ def decide_images(state: State) -> dict:
     return {
         "md_with_placeholders": md_with_placeholders,
         "image_specs": image_specs_dict,
+        "workflow_step": "image-plan",
     }
 
 
@@ -292,6 +295,7 @@ def generate_and_place_images(state: State, config: Optional[RunnableConfig] = N
     The API layer reads these files afterwards and stores them in the database.
     """
     config = config or {}
+    mark_workflow_step(state.get("run_id"), "image-gen")
     workspace_dir = Path(
         (config.get("configurable") or {}).get("workspace_dir", ".")
     )
@@ -303,7 +307,7 @@ def generate_and_place_images(state: State, config: Optional[RunnableConfig] = N
     image_specs = state.get("image_specs", []) or []
 
     if not image_specs:
-        return {"final": md}
+        return {"final": md, "workflow_step": "image-gen"}
 
     images_dir = workspace_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)

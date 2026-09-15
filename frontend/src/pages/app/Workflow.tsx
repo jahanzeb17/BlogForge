@@ -8,7 +8,7 @@ const STEPS = [
   ["outline-review", "Outline Review"],
   ["safety", "Safety Check"],
   ["research", "Web Research"],
-  ["research-plan", "Research Planning"],
+  ["research-plan", "Blog Planning"],
   ["writing", "Section Writing"],
   ["merge", "Content Merge"],
   ["image-plan", "Image Planning"],
@@ -17,20 +17,15 @@ const STEPS = [
   ["final-blog", "Final Blog"],
 ];
 function stepState(i: number, run: RunDetail) {
-  const interrupt = run.interrupt_type;
-  if (interrupt === "research_plan_review")
-    return i < 2 ? "completed" : i === 2 ? "waiting" : "pending";
-  if (interrupt === "final_draft_review")
-    return i < 10 ? "completed" : i === 10 ? "waiting" : "pending";
+  const current = run.workflow_step ? STEPS.findIndex(([id]) => id === run.workflow_step) : -1;
+  if (run.status === "pending") return i === 0 ? "running" : "pending";
   if (run.status === "completed") return "completed";
-  if (run.status === "failed")
-    return i === 0 ? "failed" : i < 8 ? "completed" : "pending";
-  if (run.final_markdown) return i < 10 ? "completed" : "running";
-  if (run.evidence?.length)
-    return i < 4 ? "completed" : i === 4 ? "running" : "pending";
-  if (run.plan) return i < 2 ? "completed" : i === 2 ? "running" : "pending";
-  return i === 0 ? "running" : "pending";
+  if (run.status === "failed") return current < 0 ? (i === 0 ? "failed" : "pending") : i < current ? "completed" : i === current ? "failed" : "pending";
+  if (run.status === "interrupted") return current < 0 ? "pending" : i < current ? "completed" : i === current ? "waiting" : "pending";
+  if (current < 0) return "pending";
+  return i < current ? "completed" : i === current ? "running" : "pending";
 }
+
 export default function WorkflowPage({
   navigate,
   runId,
@@ -66,8 +61,7 @@ export default function WorkflowPage({
         <LoadingSpinner size="lg" />
       </div>
     );
-  const current = statuses.findIndex((s) => s === "running" || s === "waiting");
-  const done = statuses.filter((s) => s === "completed").length;
+  const done = run.status === "completed" ? STEPS.length : statuses.filter((s) => s === "completed").length;
   return (
     <div className="h-full flex flex-col">
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4">

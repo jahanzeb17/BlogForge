@@ -4,7 +4,7 @@ import Landing from "./pages/Landing";
 import { LoginPage, RegisterPage } from "./pages/Auth";
 import AppShell from "./pages/app/Shell";
 import AdminShell from "./pages/admin/Shell";
-import { api, clearToken, saveToken, type User } from "./services/api";
+import { api, clearToken, clearRunId, getStoredRunId, saveRunId, saveToken, type User, type RunDetail } from "./services/api";
 
 export default function App() {
   const [route, setRoute] = useState<Route>({
@@ -12,8 +12,20 @@ export default function App() {
     page: "landing",
   });
   const [user, setUser] = useState<User | null>(null);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [runId, setRunIdState] = useState<string | null>(() => getStoredRunId());
   const [booting, setBooting] = useState(true);
+
+  const setRunId = (id: string | null) => {
+    setRunIdState(id);
+    if (id) saveRunId(id); else clearRunId();
+  };
+
+  const routeForRun = (run: Pick<RunDetail, "status" | "interrupt_type">): Route => {
+    if (run.interrupt_type === "research_plan_review") return { section: "app", page: "outline-review" };
+    if (run.interrupt_type === "final_draft_review") return { section: "app", page: "blog-workspace" };
+    if (run.status === "completed") return { section: "app", page: "blog-workspace" };
+    return { section: "app", page: "workflow" };
+  };
 
   useEffect(() => {
     if (!localStorage.getItem("blogforge_token")) {
@@ -22,29 +34,58 @@ export default function App() {
     }
     api
       .me()
-      .then((u) => {
+      .then(async (u) => {
         setUser(u);
-        setRoute(
-          u.is_admin
-            ? { section: "admin", page: "dashboard" }
-            : { section: "app", page: "new-blog" },
-        );
+        if (u.is_admin) {
+          setRoute({ section: "admin", page: "dashboard" });
+          return;
+        }
+        const storedId = getStoredRunId();
+        if (storedId) {
+          try {
+            const run = await api.getRun(storedId);
+            setRunIdState(storedId);
+            setRoute(routeForRun(run));
+            return;
+          } catch {
+            clearRunId();
+            setRunIdState(null);
+          }
+        }
+        setRoute({ section: "app", page: "new-blog" });
       })
-      .catch(() => clearToken())
+      .catch(() => { clearToken(); clearRunId(); setRunIdState(null); })
       .finally(() => setBooting(false));
   }, []);
 
   const navigate = (newRoute: Route) => setRoute(newRoute);
   const handleAuth = async (auth: { access_token: string }) => {
     saveToken(auth.access_token);
-    const u = await api.me();
-    setUser(u);
-    setRoute(
-      u.is_admin
-        ? { section: "admin", page: "dashboard" }
-        : { section: "app", page: "new-blog" },
-    );
+    try {
+      const u = await api.me();
+      setUser(u);
+      setRoute(
+        u.is_admin
+          ? { section: "admin", page: "dashboard" }
+          : { section: "app", page: "new-blog" },
+      );
+    } catch (error) {
+      clearToken();
+      throw error;
+    }
   };
+  useEffect(() => {
+    const onUnauthorized = () => {
+      clearToken();
+      clearRunId();
+      setUser(null);
+      setRunIdState(null);
+      setRoute({ section: "public", page: "login" });
+    };
+    window.addEventListener("blogforge:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("blogforge:unauthorized", onUnauthorized);
+  }, []);
+
   const handleLogout = () => {
     clearToken();
     setUser(null);

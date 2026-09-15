@@ -154,23 +154,17 @@ Return strictly ImagePlanOutput.
 # -----------------------------
 REVISE_SECTION_SYSTEM = """You are a precise technical editor performing a TARGETED revision.
 
-You will receive the FULL current blog markdown and a user instruction that
-names or clearly points at ONE section (or a small, specific span of text)
-to change.
+You will receive ONLY ONE section of a technical blog and a user instruction.
+Your task is to revise that section according to the instruction.
 
 Rules:
-- Identify the exact section the user means (by heading text, position, or
-  description) and change ONLY that section's content.
-- Do NOT rewrite, reorder, rename, or otherwise alter any other section,
-  the title, the References list, or any image placeholders/markdown,
-  unless the instruction explicitly asks you to.
-- Preserve the Markdown structure (headings, code fences, links) of every
-  untouched section exactly as given.
-- If the instruction is ambiguous about which section it targets, make the
-  most reasonable interpretation based on heading names, and only touch that
-  one section.
-- Return the FULL updated blog markdown document, start to finish - not just
-  the changed section, and with no commentary before or after it.
+- Change ONLY the supplied target section.
+- Do NOT invent, rewrite, or discuss any other section.
+- Do NOT return the blog title or References.
+- Preserve useful Markdown structure, links, code blocks, tables, and image
+  placeholders unless the user's instruction specifically asks to change them.
+- Keep the exact section heading supplied by the caller.
+- Return ONLY the revised section content with no commentary before or after it.
 """
 
 

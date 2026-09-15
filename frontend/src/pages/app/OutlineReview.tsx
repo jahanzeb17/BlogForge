@@ -5,11 +5,9 @@ import { api, type RunDetail } from "../../services/api";
 export default function OutlineReviewPage({
   navigate,
   runId,
-  setRunId,
 }: {
   navigate: NavFn;
   runId: string;
-  setRunId: (id: string | null) => void;
 }) {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [queries, setQueries] = useState<string[]>([]);
@@ -20,7 +18,7 @@ export default function OutlineReviewPage({
       .getRun(runId)
       .then((r) => {
         setRun(r);
-        setQueries(r.interrupt_data?.queries || []);
+        setQueries(Array.isArray(r.interrupt_data?.queries) ? r.interrupt_data.queries.slice(0, 4) : []);
       })
       .catch((e) => setError(e.message));
   }, [runId]);
@@ -34,7 +32,7 @@ export default function OutlineReviewPage({
     setLoading(true);
     setError("");
     try {
-      await api.resumeRun(runId, { action, queries });
+      await api.resumeRun(runId, action === "skip_research" ? { action } : { action, queries: queries.map((q) => q.trim()).filter(Boolean).slice(0, 4) });
       navigate({ section: "app", page: "workflow" });
     } catch (e: any) {
       setError(e.message);
@@ -70,6 +68,10 @@ export default function OutlineReviewPage({
               {run.topic}
             </p>
           </div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-slate-400">{queries.filter((q) => q.trim()).length} / 4 subtopics</span>
+            <span className="text-xs text-slate-400">Empty entries are removed before submission</span>
+          </div>
           <div className="space-y-3">
             {queries.map((q, i) => (
               <div
@@ -101,8 +103,9 @@ export default function OutlineReviewPage({
               </div>
             ))}
             <button
+              disabled={queries.length >= 4}
               onClick={() => setQueries((a) => [...a, ""])}
-              className="w-full py-3 border border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-indigo-300"
+              className="w-full py-3 border border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               + Add research subtopic
             </button>
@@ -130,7 +133,7 @@ export default function OutlineReviewPage({
                 )
               }
               loading={loading}
-              disabled={!queries.some(Boolean)}
+              disabled={queries.filter((q) => q.trim()).length === 0 || queries.filter((q) => q.trim()).length > 4}
             >
               Approve & Start Research
             </Button>

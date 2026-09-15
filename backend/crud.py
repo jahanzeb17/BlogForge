@@ -27,6 +27,36 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def _workflow_step(run: BlogRun) -> str:
+    """Return the best persisted workflow stage without pretending to know
+    a graph node that the API has not observed yet. Interrupted stages are
+    exact; running stages are inferred from the durable artifacts."""
+    if run.interrupt_type == "research_plan_review":
+        return "outline-review"
+    if run.workflow_step:
+        return run.workflow_step
+    if run.interrupt_type == "final_draft_review":
+        return "final-review"
+    if run.status == "completed":
+        return "final-blog"
+    if run.status == "failed":
+        if run.final_markdown:
+            return "final-review"
+        if run.plan_json:
+            return "writing"
+        if run.evidence_json:
+            return "research"
+        return "outline"
+    if run.plan_json and run.final_markdown:
+        return "image-gen"
+    if run.plan_json:
+        return "writing"
+    if run.evidence_json:
+        return "research"
+    return "outline"
+
+
 # ===== Run CRUD endpoints =================================================
 
 @router.post("/api/runs")
@@ -67,9 +97,11 @@ def create_run(
         guardrail_msg=None, # Transformation messages no longer needed
     )
     db.add(run)
+    run.workflow_step = "guardrail"
     db.commit()
 
     inputs = {
+        "run_id": run_id,
         "topic": safe_topic,
         "audience_pref": req.audience_pref,
         "tone_pref": req.tone_pref,
@@ -113,6 +145,8 @@ def list_runs(
             "status": r.status,
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "interrupt_type": r.interrupt_type,
+            "workflow_step": _workflow_step(r),
         }
         for r in runs
     ]
@@ -147,6 +181,7 @@ def get_run(
         "interrupt_data": json.loads(run.interrupt_data_json) if run.interrupt_data_json else None,
         "error_message": run.error_message,
         "guardrail_msg": run.guardrail_msg,
+        "workflow_step": _workflow_step(run),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "updated_at": run.updated_at.isoformat() if run.updated_at else None,
         "images": [
@@ -197,20 +232,35 @@ def resume_run(
         resume_value["queries"] = safe_queries
     
     # ── 2. Evaluate Final Draft Revisions ──
+    blocked_revision = False
     if req.instructions is not None:
         gr = guardrail_check(req.instructions)
         if gr.action == "allow":
             resume_value["instructions"] = req.instructions
         else:
-            msg_parts.append(f"Blocked Revision: '{req.instructions}'\nReason: {gr.reason}")
-            resume_value["instructions"] = "" # Clear the harmful instruction
-    
+            blocked_revision = True
+            msg_parts.append(
+                f"Blocked Revision: '{req.instructions}'\nReason: {gr.reason}"
+            )
+
     # ── 3. Save Warning to Database for Frontend ──
     if msg_parts:
-        run.guardrail_msg = "We removed harmful input(s) from your request:\n\n" + "\n\n".join(msg_parts)
+        run.guardrail_msg = (
+            "We removed harmful input(s) from your request:\n\n"
+            + "\n\n".join(msg_parts)
+        )
     else:
         run.guardrail_msg = None
     db.commit()
+
+    # Keep a blocked revision paused. Resuming with an empty instruction would
+    # incorrectly turn a safe run into a failed run.
+    if blocked_revision:
+        raise HTTPException(
+            status_code=400,
+            detail=run.guardrail_msg
+            or "Revision request was blocked by the safety check.",
+        )
 
     workspace_dir = str(STORAGE_DIR / run_id)
     Path(workspace_dir).mkdir(parents=True, exist_ok=True)

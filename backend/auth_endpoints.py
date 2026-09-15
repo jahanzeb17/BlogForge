@@ -58,16 +58,61 @@ def register(
     )
 
 
+# @router.post("/auth/login", response_model=TokenResponse)
+# def login(
+#     req: LoginRequest,
+#     db: Session = Depends(get_db),
+# ):
+#     user = (
+#         db.query(User)
+#         .filter(User.username == req.username)
+#         .first()
+#     )
+
+#     if not user or not verify_password(
+#         req.password,
+#         user.hashed_password,
+#     ):
+#         raise HTTPException(
+#             status_code=401,
+#             detail="Invalid credentials",
+#         )
+
+#     token = create_access_token(
+#         {
+#             "sub": str(user.id),
+#         }
+#     )
+
+#     return TokenResponse(
+#         access_token=token,
+#         user_id=user.id,
+#         username=user.username,
+#     )
+
 @router.post("/auth/login", response_model=TokenResponse)
 def login(
     req: LoginRequest,
     db: Session = Depends(get_db),
 ):
+    print("LOGIN USERNAME:", repr(req.username))
+    print("LOGIN PASSWORD LENGTH:", len(req.password))
+
     user = (
         db.query(User)
         .filter(User.username == req.username)
         .first()
     )
+
+    print("USER FOUND:", user is not None)
+
+    if user:
+        print("DB USERNAME:", repr(user.username))
+        print("HASH:", repr(user.hashed_password))
+        print(
+            "PASSWORD MATCH:",
+            verify_password(req.password, user.hashed_password),
+        )
 
     if not user or not verify_password(
         req.password,
@@ -79,9 +124,7 @@ def login(
         )
 
     token = create_access_token(
-        {
-            "sub": str(user.id),
-        }
+        {"sub": str(user.id)}
     )
 
     return TokenResponse(

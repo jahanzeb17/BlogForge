@@ -9,41 +9,7 @@ import {
   LoadingSpinner,
   Alert,
 } from "../../components/ui";
-function renderMarkdown(md: string) {
-  return md.split("\n").map((line, i) => {
-    if (line.startsWith("# "))
-      return (
-        <h1 key={i} className="text-3xl font-bold mt-2 mb-5">
-          {line.slice(2)}
-        </h1>
-      );
-    if (line.startsWith("## "))
-      return (
-        <h2 key={i} className="text-xl font-bold mt-8 mb-3">
-          {line.slice(3)}
-        </h2>
-      );
-    if (line.startsWith("### "))
-      return (
-        <h3 key={i} className="text-base font-semibold mt-6 mb-2">
-          {line.slice(4)}
-        </h3>
-      );
-    if (line.startsWith("- "))
-      return (
-        <li key={i} className="ml-5 text-sm leading-7 list-disc">
-          {line.slice(2)}
-        </li>
-      );
-    if (line.startsWith("```")) return null;
-    if (!line.trim()) return <div key={i} className="h-2" />;
-    return (
-      <p key={i} className="text-sm leading-7 text-slate-700">
-        {line}
-      </p>
-    );
-  });
-}
+import MarkdownRenderer from "../../components/MarkdownRenderer";
 export default function BlogWorkspacePage({
   navigate,
   runId,
@@ -72,12 +38,12 @@ export default function BlogWorkspacePage({
   const md = run.final_markdown || "";
   const plan = run.plan || {};
   const evidence = run.evidence || [];
-  const approve = async (action: string) => {
+  const approve = async (action: "approve" | "revise") => {
     setLoading(true);
     try {
       await api.resumeRun(runId, {
         action,
-        instructions: action === "revise" ? instructions : undefined,
+        instructions: action === "revise" ? instructions.trim() : undefined,
       });
       setRevision(false);
       navigate({ section: "app", page: "workflow" });
@@ -157,7 +123,7 @@ export default function BlogWorkspacePage({
           {tab === "draft" && (
             <article className="bg-white border border-slate-200 rounded-xl p-6 sm:p-10">
               {md ? (
-                renderMarkdown(md)
+                <MarkdownRenderer markdown={md} runId={run.id} />
               ) : (
                 <p className="text-sm text-slate-500">
                   Draft is not available yet.

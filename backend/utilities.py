@@ -12,9 +12,6 @@ from agents.graph import app as blog_graph
 logger = logging.getLogger(__name__)
 
 
-
-
-
 # ===== Helper: graph config ===============================================
 
 def _graph_config(thread_id: str, workspace_dir: str) -> dict:
@@ -66,10 +63,16 @@ def _update_run_from_result(
         run.status = "interrupted"
         run.interrupt_type = iv.get("type")
         run.interrupt_data_json = json.dumps(iv, default=str)
+        if iv.get("type") == "research_plan_review":
+            run.workflow_step = "outline-review"
+        elif iv.get("type") == "final_draft_review":
+            run.workflow_step = "final-review"
     else:
         run.status = "completed"
         run.interrupt_type = None
         run.interrupt_data_json = None
+        if result.get("final"):
+            run.workflow_step = "final-blog"
 
     # Plan
     plan = result.get("plan")
