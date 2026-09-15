@@ -156,10 +156,7 @@ export default function AppShell({
             <WorkflowPage navigate={navigate} runId={runId} />
           )}{" "}
           {route.page === "outline-review" && runId && (
-            <OutlineReviewPage
-              navigate={navigate}
-              runId={runId}
-            />
+            <OutlineReviewPage navigate={navigate} runId={runId} />
           )}{" "}
           {route.page === "blog-workspace" && runId && (
             <BlogWorkspacePage navigate={navigate} runId={runId} />

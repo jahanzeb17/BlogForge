@@ -24,21 +24,37 @@ def register(
     req: RegisterRequest,
     db: Session = Depends(get_db),
 ):
-    existing_user = (
+    # Check whether the username is already registered.
+    existing_username = (
         db.query(User)
         .filter(User.username == req.username)
         .first()
     )
 
-    if existing_user:
+    if existing_username:
         raise HTTPException(
             status_code=400,
             detail="Username already taken",
         )
 
+    # Check whether the email is already registered.
+    existing_email = (
+        db.query(User)
+        .filter(User.email == req.email)
+        .first()
+    )
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered",
+        )
+
     user = User(
         username=req.username,
+        email=req.email,
         hashed_password=hash_password(req.password),
+        is_admin=False,
     )
 
     db.add(user)
@@ -55,64 +71,21 @@ def register(
         access_token=token,
         user_id=user.id,
         username=user.username,
+        email=user.email,
     )
 
-
-# @router.post("/auth/login", response_model=TokenResponse)
-# def login(
-#     req: LoginRequest,
-#     db: Session = Depends(get_db),
-# ):
-#     user = (
-#         db.query(User)
-#         .filter(User.username == req.username)
-#         .first()
-#     )
-
-#     if not user or not verify_password(
-#         req.password,
-#         user.hashed_password,
-#     ):
-#         raise HTTPException(
-#             status_code=401,
-#             detail="Invalid credentials",
-#         )
-
-#     token = create_access_token(
-#         {
-#             "sub": str(user.id),
-#         }
-#     )
-
-#     return TokenResponse(
-#         access_token=token,
-#         user_id=user.id,
-#         username=user.username,
-#     )
 
 @router.post("/auth/login", response_model=TokenResponse)
 def login(
     req: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    print("LOGIN USERNAME:", repr(req.username))
-    print("LOGIN PASSWORD LENGTH:", len(req.password))
-
+    # Login is performed using email.
     user = (
         db.query(User)
-        .filter(User.username == req.username)
+        .filter(User.email == req.email)
         .first()
     )
-
-    print("USER FOUND:", user is not None)
-
-    if user:
-        print("DB USERNAME:", repr(user.username))
-        print("HASH:", repr(user.hashed_password))
-        print(
-            "PASSWORD MATCH:",
-            verify_password(req.password, user.hashed_password),
-        )
 
     if not user or not verify_password(
         req.password,
@@ -120,17 +93,20 @@ def login(
     ):
         raise HTTPException(
             status_code=401,
-            detail="Invalid credentials",
+            detail="Invalid email or password",
         )
 
     token = create_access_token(
-        {"sub": str(user.id)}
+        {
+            "sub": str(user.id),
+        }
     )
 
     return TokenResponse(
         access_token=token,
         user_id=user.id,
         username=user.username,
+        email=user.email,
     )
 
 
@@ -141,5 +117,6 @@ def me(
     return {
         "id": user.id,
         "username": user.username,
+        "email": user.email,
         "is_admin": user.is_admin,
     }

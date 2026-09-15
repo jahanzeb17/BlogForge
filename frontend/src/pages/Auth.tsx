@@ -21,15 +21,19 @@ const TechVisual = () => (
         >
           <circle cx="1" cy="1" r="0.9" fill="#4F46E5" opacity="0.18" />
         </pattern>
+
         <filter id="auth-glow">
           <feGaussianBlur stdDeviation="8" result="coloredBlur" />
+
           <feMerge>
             <feMergeNode in="coloredBlur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
+
       <rect width="480" height="640" fill="#0B1020" />
+
       <rect width="480" height="640" fill="url(#auth-dots)" />
 
       <ellipse
@@ -40,6 +44,7 @@ const TechVisual = () => (
         fill="#4F46E5"
         opacity="0.05"
       />
+
       <ellipse
         cx="380"
         cy="420"
@@ -49,7 +54,6 @@ const TechVisual = () => (
         opacity="0.06"
       />
 
-      {/* Central node cluster */}
       <circle
         cx="240"
         cy="260"
@@ -59,6 +63,7 @@ const TechVisual = () => (
         strokeWidth="1.5"
         filter="url(#auth-glow)"
       />
+
       <text
         x="240"
         y="255"
@@ -69,6 +74,7 @@ const TechVisual = () => (
       >
         ● AI
       </text>
+
       <text
         x="240"
         y="270"
@@ -80,7 +86,6 @@ const TechVisual = () => (
         Agent Ready
       </text>
 
-      {/* Orbiting nodes */}
       <circle
         cx="130"
         cy="160"
@@ -89,6 +94,7 @@ const TechVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="130"
         y="157"
@@ -99,6 +105,7 @@ const TechVisual = () => (
       >
         PLAN
       </text>
+
       <text
         x="130"
         y="169"
@@ -118,6 +125,7 @@ const TechVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="355"
         y="157"
@@ -128,6 +136,7 @@ const TechVisual = () => (
       >
         SRC
       </text>
+
       <text
         x="355"
         y="169"
@@ -147,6 +156,7 @@ const TechVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="130"
         y="357"
@@ -157,6 +167,7 @@ const TechVisual = () => (
       >
         WRITE
       </text>
+
       <text
         x="130"
         y="369"
@@ -176,6 +187,7 @@ const TechVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="355"
         y="357"
@@ -186,6 +198,7 @@ const TechVisual = () => (
       >
         ✓ REV
       </text>
+
       <text
         x="355"
         y="369"
@@ -197,7 +210,6 @@ const TechVisual = () => (
         Review
       </text>
 
-      {/* Connection lines */}
       <line
         x1="158"
         y1="175"
@@ -208,6 +220,7 @@ const TechVisual = () => (
         strokeDasharray="3 3"
         opacity="0.4"
       />
+
       <line
         x1="326"
         y1="175"
@@ -218,6 +231,7 @@ const TechVisual = () => (
         strokeDasharray="3 3"
         opacity="0.4"
       />
+
       <line
         x1="158"
         y1="345"
@@ -228,6 +242,7 @@ const TechVisual = () => (
         strokeDasharray="3 3"
         opacity="0.4"
       />
+
       <line
         x1="326"
         y1="345"
@@ -239,7 +254,6 @@ const TechVisual = () => (
         opacity="0.4"
       />
 
-      {/* Code snippet bottom */}
       <rect
         x="50"
         y="480"
@@ -250,6 +264,7 @@ const TechVisual = () => (
         stroke="#1E293B"
         strokeWidth="1"
       />
+
       <text
         x="62"
         y="500"
@@ -259,6 +274,7 @@ const TechVisual = () => (
       >
         class BlogAgent:
       </text>
+
       <text
         x="72"
         y="513"
@@ -269,6 +285,7 @@ const TechVisual = () => (
         {" "}
         def research(self):
       </text>
+
       <text
         x="82"
         y="526"
@@ -279,6 +296,7 @@ const TechVisual = () => (
         {" "}
         return sources
       </text>
+
       <text
         x="62"
         y="542"
@@ -289,7 +307,6 @@ const TechVisual = () => (
         &#x2F;&#x2F; 24 sources collected
       </text>
 
-      {/* Source badge top right */}
       <rect
         x="250"
         y="460"
@@ -300,6 +317,7 @@ const TechVisual = () => (
         stroke="#1E293B"
         strokeWidth="1"
       />
+
       <text
         x="262"
         y="480"
@@ -309,6 +327,7 @@ const TechVisual = () => (
       >
         Latest blog generated
       </text>
+
       <text
         x="262"
         y="496"
@@ -319,6 +338,7 @@ const TechVisual = () => (
       >
         RAG in Production
       </text>
+
       <text
         x="262"
         y="507"
@@ -330,13 +350,14 @@ const TechVisual = () => (
       </text>
     </svg>
 
-    {/* Overlay branding */}
     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B1020] to-transparent h-32" />
+
     <div className="absolute bottom-8 left-8 right-8">
       <p className="text-slate-400 text-sm font-medium leading-relaxed">
         "BlogForge produces documentation-quality technical blogs with
         transparent AI workflow and evidence-grounded writing."
       </p>
+
       <p className="text-slate-600 text-xs mt-2">
         — Alex Chen, Platform Engineer
       </p>
@@ -349,23 +370,32 @@ const TechVisual = () => (
 interface LoginPageProps {
   navigate: NavFn;
   onLogin: (auth: AuthResponse) => Promise<void>;
+  initialEmail?: string;
+  registrationSuccess?: boolean;
 }
 
-export function LoginPage({ navigate, onLogin }: LoginPageProps) {
-  const [username, setUsername] = useState("");
+export function LoginPage({
+  navigate,
+  onLogin,
+  initialEmail = "",
+  registrationSuccess = false,
+}: LoginPageProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = () => {
-    if (!username || !password) {
-      setError("Please enter your username and password.");
+    if (!email || !password) {
+      setError("Please enter your email and password.");
       return;
     }
+
     setError("");
     setLoading(true);
+
     api
-      .login(username, password)
+      .login(email, password)
       .then(onLogin)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -373,15 +403,14 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left visual */}
       <div className="hidden lg:block relative flex-1 min-h-screen">
         <TechVisual />
+
         <div className="absolute top-8 left-8">
           <BlogForgeLogo dark />
         </div>
       </div>
 
-      {/* Right form */}
       <div className="flex-1 lg:max-w-md xl:max-w-lg flex flex-col items-center justify-center p-8 bg-white">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8">
@@ -389,9 +418,17 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+
           <p className="text-slate-500 text-sm mt-1 mb-7">
             Sign in to your BlogForge workspace.
           </p>
+
+          {registrationSuccess && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">
+              Account created successfully. Please log in with your email and
+              password.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4">
@@ -401,12 +438,13 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
 
           <div className="flex flex-col gap-4">
             <Input
-              label="Username"
-              placeholder="e.g. alex.chen"
-              value={username}
-              onChange={setUsername}
+              label="Email"
+              placeholder="e.g. jahanzeb@gmail.com"
+              value={email}
+              onChange={setEmail}
               autoFocus
             />
+
             <Input
               label="Password"
               placeholder="Your password"
@@ -414,6 +452,7 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
               onChange={setPassword}
               type="password"
             />
+
             <div className="mt-1">
               <Button fullWidth loading={loading} onClick={handleLogin}>
                 Login
@@ -424,9 +463,13 @@ export function LoginPage({ navigate, onLogin }: LoginPageProps) {
           <div className="mt-5 pt-5 border-t border-slate-200 text-center">
             <p className="text-sm text-slate-500">
               {"Don't have an account?"}
+
               <button
                 onClick={() =>
-                  navigate({ section: "public", page: "register" })
+                  navigate({
+                    section: "public",
+                    page: "register",
+                  })
                 }
                 className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700"
               >
@@ -447,45 +490,71 @@ interface RegisterPageProps {
   onLogin: (auth: AuthResponse) => Promise<void>;
 }
 
-export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
+export function RegisterPage({ navigate }: RegisterPageProps) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const passwordReqs = [
-    { label: "At least 8 characters", ok: password.length >= 8 },
-    { label: "Contains a number", ok: /\d/.test(password) },
-    { label: "Contains a letter", ok: /[a-zA-Z]/.test(password) },
+    {
+      label: "At least 8 characters",
+      ok: password.length >= 8,
+    },
+    {
+      label: "Contains a number",
+      ok: /\d/.test(password),
+    },
+    {
+      label: "Contains a letter",
+      ok: /[a-zA-Z]/.test(password),
+    },
   ];
 
   const handleRegister = () => {
-    if (!username || !password || !confirm) {
+    if (!username || !email || !password || !confirm) {
       setError("All fields are required.");
       return;
     }
+
     if (password !== confirm) {
       setError("Passwords do not match.");
       return;
     }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
+
     setError("");
     setLoading(true);
+
     api
-      .register(username, password)
-      .then(onLogin)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .register(username, email, password)
+      .then(() => {
+        setLoading(false);
+
+        navigate({
+          section: "public",
+          page: "login",
+          loginEmail: email,
+          registrationSuccess: true,
+        });
+      })
+      .catch((e) => {
+        setError(e.message || "Unable to create your account.");
+        setLoading(false);
+      });
   };
 
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:block relative flex-1 min-h-screen">
         <TechVisual />
+
         <div className="absolute top-8 left-8">
           <BlogForgeLogo dark />
         </div>
@@ -500,6 +569,7 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
           <h1 className="text-2xl font-bold text-slate-900">
             Create your BlogForge account
           </h1>
+
           <p className="text-slate-500 text-sm mt-1 mb-7">
             Start creating research-backed technical blogs.
           </p>
@@ -513,11 +583,20 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
           <div className="flex flex-col gap-4">
             <Input
               label="Username"
-              placeholder="e.g. alex.chen"
+              placeholder="e.g. Jahanzeb17"
               value={username}
               onChange={setUsername}
               autoFocus
             />
+
+            <Input
+              label="Email"
+              placeholder="e.g. jahanzeb@gmail.com"
+              value={email}
+              onChange={setEmail}
+              type="email"
+            />
+
             <div>
               <Input
                 label="Password"
@@ -526,12 +605,15 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
                 onChange={setPassword}
                 type="password"
               />
+
               {password.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1">
                   {passwordReqs.map((r) => (
                     <div key={r.label} className="flex items-center gap-1.5">
                       <svg
-                        className={`w-3 h-3 ${r.ok ? "text-green-500" : "text-slate-300"}`}
+                        className={`w-3 h-3 ${
+                          r.ok ? "text-green-500" : "text-slate-300"
+                        }`}
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -541,8 +623,11 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
                           clipRule="evenodd"
                         />
                       </svg>
+
                       <span
-                        className={`text-xs ${r.ok ? "text-green-600" : "text-slate-400"}`}
+                        className={`text-xs ${
+                          r.ok ? "text-green-600" : "text-slate-400"
+                        }`}
                       >
                         {r.label}
                       </span>
@@ -551,6 +636,7 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
                 </div>
               )}
             </div>
+
             <Input
               label="Confirm Password"
               placeholder="Re-enter your password"
@@ -563,6 +649,7 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
                   : undefined
               }
             />
+
             <div className="mt-1">
               <Button fullWidth loading={loading} onClick={handleRegister}>
                 Create Account
@@ -574,7 +661,12 @@ export function RegisterPage({ navigate, onLogin }: RegisterPageProps) {
             <p className="text-sm text-slate-500">
               Already have an account?
               <button
-                onClick={() => navigate({ section: "public", page: "login" })}
+                onClick={() =>
+                  navigate({
+                    section: "public",
+                    page: "login",
+                  })
+                }
                 className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700"
               >
                 Sign in

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -14,6 +15,10 @@ router = APIRouter(
     prefix="/api/admin",
     tags=["Admin Dashboard"],
 )
+
+
+class RoleUpdateRequest(BaseModel):
+    is_admin: bool
 
 
 @router.get("/metrics")
@@ -89,7 +94,9 @@ def get_all_runs(
     query = db.query(BlogRun)
 
     if status_filter:
-        query = query.filter(BlogRun.status == status_filter)
+        query = query.filter(
+            BlogRun.status == status_filter
+        )
 
     runs = (
         query
@@ -102,7 +109,11 @@ def get_all_runs(
         {
             "run_id": run.id,
             "user_id": run.user_id,
-            "username": run.user.username if run.user else "Unknown",
+            "username": (
+                run.user.username
+                if run.user
+                else "Unknown"
+            ),
             "topic": run.topic,
             "status": run.status,
             "error_message": run.error_message,
@@ -137,7 +148,9 @@ def get_security_audit_logs(
 
     flagged_runs = (
         db.query(BlogRun)
-        .filter(BlogRun.guardrail_msg.isnot(None))
+        .filter(
+            BlogRun.guardrail_msg.isnot(None)
+        )
         .order_by(BlogRun.created_at.desc())
         .limit(limit)
         .all()
@@ -147,7 +160,11 @@ def get_security_audit_logs(
         {
             "run_id": run.id,
             "user_id": run.user_id,
-            "username": run.user.username if run.user else "Unknown",
+            "username": (
+                run.user.username
+                if run.user
+                else "Unknown"
+            ),
             "topic_attempted": run.topic,
             "guardrail_message": run.guardrail_msg,
             "timestamp": (
@@ -177,6 +194,7 @@ def get_user_directory(
         {
             "user_id": user.id,
             "username": user.username,
+            "email": user.email,
             "is_admin": user.is_admin,
             "total_blogs_created": len(user.runs),
             "joined_at": (
@@ -218,6 +236,7 @@ def get_user_details(
     return {
         "user_id": user.id,
         "username": user.username,
+        "email": user.email,
         "is_admin": user.is_admin,
         "joined_at": (
             user.created_at.isoformat()
@@ -243,4 +262,62 @@ def get_user_details(
             }
             for run in user_runs
         ],
+    }
+
+
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    req: RoleUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """
+    Promote a user to administrator or demote an administrator
+    to a normal user. Admin access only.
+    """
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    # Do not allow an administrator to remove their own
+    # administrator privileges.
+    if user.id == admin.id and not req.is_admin:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot remove your own administrator access.",
+        )
+
+    # Do not allow the last administrator to be demoted.
+    if user.is_admin and not req.is_admin:
+        admin_count = (
+            db.query(User)
+            .filter(User.is_admin.is_(True))
+            .count()
+        )
+
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail="The platform must have at least one administrator.",
+            )
+
+    user.is_admin = req.is_admin
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "user_id": user.id,
+        "username": user.username,
+        "is_admin": user.is_admin,
     }

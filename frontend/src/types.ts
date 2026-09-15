@@ -1,15 +1,43 @@
 export type PublicPage = 'landing' | 'login' | 'register'
-export type AppPage = 'new-blog' | 'workflow' | 'outline-review' | 'blog-workspace' | 'my-blogs' | 'activity'
-export type AdminPage = 'dashboard' | 'users' | 'runs' | 'security'
+
+export type AppPage =
+  | 'new-blog'
+  | 'workflow'
+  | 'outline-review'
+  | 'blog-workspace'
+  | 'my-blogs'
+  | 'activity'
+
+export type AdminPage =
+  | 'dashboard'
+  | 'users'
+  | 'runs'
+  | 'security'
 
 export type Route =
-  | { section: 'public'; page: PublicPage }
-  | { section: 'app'; page: AppPage }
-  | { section: 'admin'; page: AdminPage }
+  | {
+      section: 'public'
+      page: PublicPage
+      loginEmail?: string
+      registrationSuccess?: boolean
+    }
+  | {
+      section: 'app'
+      page: AppPage
+    }
+  | {
+      section: 'admin'
+      page: AdminPage
+    }
 
 export type NavFn = (route: Route) => void
 
-export type WorkflowStatus = 'pending' | 'running' | 'completed' | 'failed' | 'waiting'
+export type WorkflowStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'waiting'
 
 export interface WorkflowStep {
   id: string
@@ -21,7 +49,12 @@ export interface WorkflowStep {
 export interface BlogRun {
   id: string
   topic: string
-  status: 'draft' | 'running' | 'waiting' | 'completed' | 'failed'
+  status:
+    | 'draft'
+    | 'running'
+    | 'waiting'
+    | 'completed'
+    | 'failed'
   created: string
   updated: string
   user?: string
@@ -33,7 +66,12 @@ export interface Source {
   title: string
   url: string
   publisher: string
-  type: 'documentation' | 'paper' | 'publication' | 'standard' | 'other'
+  type:
+    | 'documentation'
+    | 'paper'
+    | 'publication'
+    | 'standard'
+    | 'other'
   section: string
   snippet: string
   date?: string

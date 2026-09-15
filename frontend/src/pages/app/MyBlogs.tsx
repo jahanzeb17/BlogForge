@@ -28,39 +28,17 @@ export default function MyBlogsPage({
       .catch((e) => setError(e.message || "Unable to load your blogs."))
       .finally(() => setLoading(false));
   }, []);
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-
-    try {
-      setDeleting(true);
-      setError("");
-
-      await api.deleteRun(deleteId);
-
-      setRuns((currentRuns) =>
-        currentRuns.filter((run) => run.id !== deleteId),
-      );
-
-      setDeleteId(null);
-    } catch (e: any) {
-      setError(e.message || "Unable to delete the blog.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   if (loading)
     return (
       <div className="h-full grid place-items-center">
         <LoadingSpinner />
       </div>
     );
-
   return (
     <div className="h-full flex flex-col">
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <h1 className="text-lg font-semibold">My Blogs</h1>
+
         <p className="text-sm text-slate-500">
           Your real BlogForge runs and generated content.
         </p>
@@ -80,7 +58,12 @@ export default function MyBlogsPage({
               description="Create your first research-backed technical blog."
               action={
                 <Button
-                  onClick={() => navigate({ section: "app", page: "new-blog" })}
+                  onClick={() =>
+                    navigate({
+                      section: "app",
+                      page: "new-blog",
+                    })
+                  }
                 >
                   Create Blog
                 </Button>
@@ -90,29 +73,25 @@ export default function MyBlogsPage({
             runs.map((r) => (
               <div
                 key={r.id}
-                className="w-full bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300"
+                onClick={() => {
+                  setRunId(r.id);
+                  navigate({
+                    section: "app",
+                    page:
+                      r.interrupt_type === "research_plan_review"
+                        ? "outline-review"
+                        : r.interrupt_type === "final_draft_review" || r.status === "completed"
+                          ? "blog-workspace"
+                          : "workflow",
+                  });
+                }}
+                className="w-full text-left bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <button
-                    onClick={() => {
-                      setRunId(r.id);
-                      navigate({
-                        section: "app",
-                        page:
-                          r.interrupt_type === "research_plan_review"
-                            ? "outline-review"
-                            : r.interrupt_type === "final_draft_review" ||
-                                r.status === "completed"
-                              ? "blog-workspace"
-                              : "workflow",
-                      });
-                    }}
-                    className="flex-1 min-w-0 text-left"
-                  >
+                  <div className="min-w-0">
                     <h2 className="text-sm font-semibold text-slate-800">
                       {r.topic}
                     </h2>
-
                     <p className="font-mono text-xs text-slate-400 mt-2">
                       {r.id}
                     </p>
