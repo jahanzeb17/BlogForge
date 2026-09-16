@@ -62,10 +62,7 @@ async function request<T>(
 export interface User {
   id: number
   username: string
-<<<<<<< HEAD
-=======
   email: string
->>>>>>> 63c37d5 (Code updated)
   is_admin: boolean
 }
 
@@ -74,10 +71,7 @@ export interface AuthResponse {
   token_type: string
   user_id: number
   username: string
-<<<<<<< HEAD
-=======
   email: string
->>>>>>> 63c37d5 (Code updated)
 }
 
 export type RunStatus =
@@ -132,10 +126,7 @@ export interface AdminRun {
 export interface AdminUser {
   user_id: number
   username: string
-<<<<<<< HEAD
-=======
   email: string
->>>>>>> 63c37d5 (Code updated)
   is_admin: boolean
   total_blogs_created: number
   joined_at: string | null
@@ -177,11 +168,7 @@ export interface UpdatedUserRole {
 
 export const api = {
   login: (
-<<<<<<< HEAD
-    username: string,
-=======
     email: string,
->>>>>>> 63c37d5 (Code updated)
     password: string
   ) =>
     request<AuthResponse>(
@@ -189,11 +176,7 @@ export const api = {
       {
         method: 'POST',
         body: JSON.stringify({
-<<<<<<< HEAD
-          username,
-=======
           email,
->>>>>>> 63c37d5 (Code updated)
           password,
         }),
       }
@@ -201,10 +184,7 @@ export const api = {
 
   register: (
     username: string,
-<<<<<<< HEAD
-=======
     email: string,
->>>>>>> 63c37d5 (Code updated)
     password: string
   ) =>
     request<AuthResponse>(
@@ -213,10 +193,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           username,
-<<<<<<< HEAD
-=======
           email,
->>>>>>> 63c37d5 (Code updated)
           password,
         }),
       }
@@ -403,8 +380,4 @@ export function clearRunId() {
   )
 }
 
-<<<<<<< HEAD
 export { API_URL }
-=======
-export { API_URL }
->>>>>>> 63c37d5 (Code updated)
