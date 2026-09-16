@@ -6,7 +6,10 @@ import {
   EmptyState,
   LoadingSpinner,
 } from "../../components/ui";
-import { api, type RunSummary } from "../../services/api";
+import {
+  api,
+  type RunSummary,
+} from "../../services/api";
 
 export default function MyBlogsPage({
   navigate,
@@ -15,29 +18,98 @@ export default function MyBlogsPage({
   navigate: NavFn;
   setRunId: (id: string) => void;
 }) {
-  const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [runs, setRuns] =
+    useState<RunSummary[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [deleteId, setDeleteId] =
+    useState<string | null>(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
 
   useEffect(() => {
     api
       .getRuns()
       .then(setRuns)
-      .catch((e) => setError(e.message || "Unable to load your blogs."))
-      .finally(() => setLoading(false));
+      .catch((e) =>
+        setError(
+          e.message ||
+            "Unable to load your blogs."
+        )
+      )
+      .finally(() =>
+        setLoading(false)
+      );
   }, []);
-  if (loading)
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    try {
+      setDeleting(true);
+      setError("");
+
+      await api.deleteRun(deleteId);
+
+      setRuns((currentRuns) =>
+        currentRuns.filter(
+          (run) => run.id !== deleteId
+        )
+      );
+
+      setDeleteId(null);
+    } catch (e: any) {
+      setError(
+        e.message ||
+          "Unable to delete the blog."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const getRunDescription = (
+    status: RunSummary["status"]
+  ) => {
+    switch (status) {
+      case "completed":
+        return "Blog generation completed";
+
+      case "interrupted":
+        return "Waiting for your review";
+
+      case "failed":
+        return "Blog generation failed";
+
+      case "running":
+        return "Blog is being generated";
+
+      case "pending":
+      default:
+        return "Waiting to start";
+    }
+  };
+
+  if (loading) {
     return (
       <div className="h-full grid place-items-center">
         <LoadingSpinner />
       </div>
     );
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <h1 className="text-lg font-semibold">My Blogs</h1>
+        <h1 className="text-lg font-semibold">
+          My Blogs
+        </h1>
 
         <p className="text-sm text-slate-500">
           Your real BlogForge runs and generated content.
@@ -73,34 +145,44 @@ export default function MyBlogsPage({
             runs.map((r) => (
               <div
                 key={r.id}
-                onClick={() => {
-                  setRunId(r.id);
-                  navigate({
-                    section: "app",
-                    page:
-                      r.interrupt_type === "research_plan_review"
-                        ? "outline-review"
-                        : r.interrupt_type === "final_draft_review" || r.status === "completed"
-                          ? "blog-workspace"
-                          : "workflow",
-                  });
-                }}
-                className="w-full text-left bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300"
+                className="w-full bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
+                  <button
+                    onClick={() => {
+                      setRunId(r.id);
+
+                      navigate({
+                        section: "app",
+                        page:
+                          r.interrupt_type ===
+                          "research_plan_review"
+                            ? "outline-review"
+                            : r.interrupt_type ===
+                                "final_draft_review" ||
+                              r.status === "completed"
+                              ? "blog-workspace"
+                              : "workflow",
+                      });
+                    }}
+                    className="flex-1 min-w-0 text-left"
+                  >
                     <h2 className="text-sm font-semibold text-slate-800">
                       {r.topic}
                     </h2>
-                    <p className="font-mono text-xs text-slate-400 mt-2">
-                      {r.id}
+
+                    <p className="text-xs text-slate-500 mt-2">
+                      {getRunDescription(
+                        r.status
+                      )}
                     </p>
                   </button>
 
                   <div className="flex items-center gap-3 shrink-0">
                     <StatusBadge
                       status={
-                        (r.status === "interrupted"
+                        (r.status ===
+                        "interrupted"
                           ? "waiting"
                           : r.status) as any
                       }
@@ -108,9 +190,9 @@ export default function MyBlogsPage({
 
                     <Button
                       variant="secondary"
-                      onClick={() => {
-                        setDeleteId(r.id);
-                      }}
+                      onClick={() =>
+                        setDeleteId(r.id)
+                      }
                     >
                       Delete
                     </Button>
@@ -130,21 +212,28 @@ export default function MyBlogsPage({
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Are you sure you want to delete this blog? This action cannot be
-              undone.
+              Are you sure you want to delete this blog?
+              This action cannot be undone.
             </p>
 
             <div className="mt-6 flex justify-end gap-3">
               <Button
                 variant="secondary"
-                onClick={() => setDeleteId(null)}
+                onClick={() =>
+                  setDeleteId(null)
+                }
                 disabled={deleting}
               >
                 Cancel
               </Button>
 
-              <Button onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Deleting..." : "Delete Blog"}
+              <Button
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting
+                  ? "Deleting..."
+                  : "Delete Blog"}
               </Button>
             </div>
           </div>
