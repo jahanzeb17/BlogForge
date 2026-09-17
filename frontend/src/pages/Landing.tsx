@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { type NavFn } from "../types";
 import { Button, BlogForgeLogo, Badge } from "../components/ui";
 
@@ -10,6 +11,28 @@ const HeroWorkflowVisual = () => (
       className="w-full h-full"
       style={{ minHeight: 280 }}
     >
+      <style>
+        {`
+          @keyframes pulse-ring {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 0.25;
+            }
+
+            50% {
+              transform: scale(1.12);
+              opacity: 0.55;
+            }
+          }
+
+          .animate-pulse-ring {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: pulse-ring 2s ease-in-out infinite;
+          }
+        `}
+      </style>
+
       <defs>
         <pattern
           id="hero-dots"
@@ -21,6 +44,7 @@ const HeroWorkflowVisual = () => (
         >
           <circle cx="1" cy="1" r="0.9" fill="#4F46E5" opacity="0.15" />
         </pattern>
+
         <filter id="hero-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="7" result="coloredBlur" />
           <feMerge>
@@ -28,6 +52,7 @@ const HeroWorkflowVisual = () => (
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+
         <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="4" result="coloredBlur" />
           <feMerge>
@@ -35,11 +60,13 @@ const HeroWorkflowVisual = () => (
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+
         <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#4F46E5" stopOpacity="0" />
           <stop offset="50%" stopColor="#4F46E5" stopOpacity="0.6" />
           <stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
         </linearGradient>
+
         <linearGradient id="cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#06B6D4" stopOpacity="0" />
           <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.5" />
@@ -83,6 +110,7 @@ const HeroWorkflowVisual = () => (
       <circle cx="36" cy="35" r="4" fill="#FF5F57" />
       <circle cx="50" cy="35" r="4" fill="#FFBD2E" />
       <circle cx="64" cy="35" r="4" fill="#28CA41" />
+
       <text
         x="28"
         y="56"
@@ -92,6 +120,7 @@ const HeroWorkflowVisual = () => (
       >
         from langchain import RAGPipeline
       </text>
+
       <text
         x="28"
         y="68"
@@ -101,6 +130,7 @@ const HeroWorkflowVisual = () => (
       >
         class BlogAgent(RAGPipeline):
       </text>
+
       <text
         x="28"
         y="80"
@@ -123,6 +153,7 @@ const HeroWorkflowVisual = () => (
         stroke="#1E2D4A"
         strokeWidth="1"
       />
+
       <text
         x="356"
         y="40"
@@ -133,6 +164,7 @@ const HeroWorkflowVisual = () => (
       >
         Sources collected
       </text>
+
       <text
         x="356"
         y="62"
@@ -143,6 +175,7 @@ const HeroWorkflowVisual = () => (
       >
         24
       </text>
+
       <text
         x="392"
         y="62"
@@ -152,7 +185,9 @@ const HeroWorkflowVisual = () => (
       >
         trusted technical sources
       </text>
+
       <rect x="356" y="72" width="55" height="10" rx="3" fill="#0F3460" />
+
       <text
         x="361"
         y="80"
@@ -162,7 +197,9 @@ const HeroWorkflowVisual = () => (
       >
         docs.langchain.com
       </text>
+
       <rect x="416" y="72" width="40" height="10" rx="3" fill="#0F3460" />
+
       <text
         x="421"
         y="80"
@@ -193,6 +230,7 @@ const HeroWorkflowVisual = () => (
         strokeWidth="1.5"
         filter="url(#soft-glow)"
       />
+
       <text
         x="75"
         y="183"
@@ -203,6 +241,7 @@ const HeroWorkflowVisual = () => (
       >
         ✓ TOPIC
       </text>
+
       <text
         x="75"
         y="196"
@@ -214,6 +253,7 @@ const HeroWorkflowVisual = () => (
       >
         Guardrail
       </text>
+
       <text
         x="75"
         y="207"
@@ -235,6 +275,8 @@ const HeroWorkflowVisual = () => (
         strokeWidth="2"
         filter="url(#hero-glow)"
       />
+
+      {/* This is the only restored animation */}
       <circle
         cx="210"
         cy="190"
@@ -245,6 +287,7 @@ const HeroWorkflowVisual = () => (
         opacity="0.25"
         className="animate-pulse-ring"
       />
+
       <text
         x="210"
         y="183"
@@ -255,6 +298,7 @@ const HeroWorkflowVisual = () => (
       >
         ● PLAN
       </text>
+
       <text
         x="210"
         y="196"
@@ -266,6 +310,7 @@ const HeroWorkflowVisual = () => (
       >
         Outline Gen
       </text>
+
       <text
         x="210"
         y="208"
@@ -286,6 +331,7 @@ const HeroWorkflowVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="350"
         y="183"
@@ -296,6 +342,7 @@ const HeroWorkflowVisual = () => (
       >
         ○ RESEARCH
       </text>
+
       <text
         x="350"
         y="196"
@@ -306,6 +353,7 @@ const HeroWorkflowVisual = () => (
       >
         Web Search
       </text>
+
       <text
         x="350"
         y="207"
@@ -326,6 +374,7 @@ const HeroWorkflowVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="490"
         y="183"
@@ -336,6 +385,7 @@ const HeroWorkflowVisual = () => (
       >
         ○ PUBLISH
       </text>
+
       <text
         x="490"
         y="196"
@@ -346,6 +396,7 @@ const HeroWorkflowVisual = () => (
       >
         Export
       </text>
+
       <text
         x="490"
         y="207"
@@ -368,6 +419,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 1
       </text>
+
       <text
         x="210"
         y="248"
@@ -378,6 +430,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 2 — Active
       </text>
+
       <text
         x="350"
         y="242"
@@ -388,6 +441,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 5
       </text>
+
       <text
         x="490"
         y="242"
@@ -410,6 +464,7 @@ const HeroWorkflowVisual = () => (
         stroke="#1E2D4A"
         strokeWidth="1"
       />
+
       <text
         x="106"
         y="305"
@@ -437,6 +492,7 @@ const HeroWorkflowVisual = () => (
           >
             {s.label}
           </text>
+
           <rect
             x={175}
             y={315 + i * 11}
@@ -445,6 +501,7 @@ const HeroWorkflowVisual = () => (
             rx={3}
             fill="#1E293B"
           />
+
           <rect
             x={175}
             y={315 + i * 11}
@@ -454,6 +511,7 @@ const HeroWorkflowVisual = () => (
             fill={s.c}
             opacity={0.7}
           />
+
           <text
             x={385}
             y={321 + i * 11}
@@ -483,6 +541,7 @@ const HeroWorkflowVisual = () => (
     <div className="absolute top-3 right-3">
       <div className="flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/60 rounded-full px-2.5 py-1">
         <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+
         <span className="text-xs text-indigo-300 font-medium">
           Live preview
         </span>
@@ -588,27 +647,43 @@ const workflowSteps = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Landing({ navigate }: { navigate: NavFn }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const goToRegister = () => {
+    navigate({
+      section: "public",
+      page: "register",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
           <BlogForgeLogo />
+
+          {/* Desktop navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a
-              href="#"
-              className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            <button
+              type="button"
+              onClick={() => navigate({ section: "public", page: "blogs" })}
+              className="text-sm text-slate-600 transition-colors hover:text-indigo-600"
             >
               Blogs
-            </a>
-            <a
-              href="#"
-              className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate({ section: "public", page: "about" })}
+              className="text-sm text-slate-600 transition-colors hover:text-indigo-600"
             >
               About Us
-            </a>
+            </button>
           </nav>
-          <div className="flex items-center gap-2">
+
+          {/* Desktop actions */}
+          <div className="hidden md:flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -616,14 +691,128 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
             >
               Login
             </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate({ section: "public", page: "register" })}
-            >
+
+            <Button size="sm" onClick={goToRegister}>
               Get Started
             </Button>
           </div>
+
+          {/* Mobile menu button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex md:hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100 hover:text-indigo-600"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile right-side drawer */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-[100] md:hidden">
+            {/* Overlay */}
+            <button
+              type="button"
+              aria-label="Close navigation menu"
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute inset-0 z-0 bg-slate-950/40"
+            />
+
+            {/* Drawer */}
+            <aside className="absolute right-0 top-0 z-10 flex h-full w-[280px] max-w-[85vw] flex-col bg-white shadow-2xl">
+              <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                  <span className="text-sm font-semibold text-slate-900">
+                    BlogForge
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                  aria-label="Close navigation menu"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 6l12 12M18 6L6 18"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <nav className="flex flex-1 flex-col gap-2 bg-white p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate({ section: "public", page: "blogs" });
+                  }}
+                  className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                >
+                  Blogs
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate({ section: "public", page: "about" });
+                  }}
+                  className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                >
+                  About Us
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate({ section: "public", page: "login" });
+                  }}
+                  className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+                >
+                  Login
+                </button>
+
+                <Button
+                  className="mt-0"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    goToRegister();
+                  }}
+                >
+                  Get Started
+                </Button>
+              </nav>
+            </aside>
+          </div>
+        )}
       </header>
 
       {/* Hero */}
@@ -681,10 +870,18 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                     />
                   </svg>
                 </Button>
-                <Button
+                {/* <Button
                   variant="outline"
                   size="lg"
                   className="border-slate-700 text-slate-300 hover:bg-slate-800/50 hover:text-white hover:border-slate-600"
+                >
+                  Explore Blogs
+                </Button> */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-slate-700 text-white lg:text-indigo-400 hover:bg-slate-800/50 hover:border-indigo-400 hover:text-white"
+                  onClick={() => navigate({ section: "public", page: "blogs" })}
                 >
                   Explore Blogs
                 </Button>
