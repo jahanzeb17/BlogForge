@@ -627,7 +627,7 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
       </header>
 
       {/* Hero */}
-      <section className="bg-[#060B16] py-16 lg:py-24 px-4 relative overflow-hidden">
+      <section className="bg-[#060B16] py-12 lg:py-15 px-4 relative overflow-hidden">
         {/* Subtle radial bg */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600 opacity-5 blur-3xl rounded-full" />
@@ -640,7 +640,7 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
               <div className="inline-flex items-center gap-2 bg-indigo-950/80 border border-indigo-800/60 rounded-full px-3 py-1 mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs text-indigo-300 font-medium">
-                  Multi-agent AI platform · 12-step workflow
+                  Multi-agent AI platform
                 </span>
               </div>
 
