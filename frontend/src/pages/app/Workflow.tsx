@@ -1,307 +1,96 @@
 import { useEffect, useMemo, useState } from "react";
-import { type NavFn } from "../../types";
-import { Button, Badge, Alert, LoadingSpinner } from "../../components/ui";
+import type { NavFn } from "../../types";
+import { Alert, Badge, Button, LoadingSpinner } from "../../components/ui";
 import { api, type RunDetail } from "../../services/api";
 
 const STEPS = [
-  ["guardrail", "Topic Guardrail"],
-  ["outline", "Outline Generator"],
-  ["outline-review", "Outline Review"],
-  ["safety", "Safety Check"],
-  ["research", "Web Research"],
-  ["research-plan", "Blog Planning"],
-  ["writing", "Section Writing"],
-  ["merge", "Content Merge"],
-  ["image-plan", "Image Planning"],
-  ["image-gen", "Image Generation"],
-  ["final-review", "Final Review"],
-  ["final-blog", "Final Blog"],
-];
+  ["guardrail", "Topic Guardrail", "Validate the topic and generation request."],
+  ["outline", "Outline Generator", "Prepare the article structure and research direction."],
+  ["outline-review", "Outline Review", "Pause for your approval of the research outline."],
+  ["safety", "Safety Check", "Check the planned workflow before research continues."],
+  ["research", "Web Research", "Gather evidence from relevant technical sources."],
+  ["research-plan", "Blog Planning", "Turn research evidence into a structured writing plan."],
+  ["writing", "Section Writing", "Generate article sections from the approved plan."],
+  ["merge", "Content Merge", "Assemble the generated sections into one draft."],
+  ["image-plan", "Image Planning", "Determine whether supporting visuals are needed."],
+  ["image-gen", "Image Generation", "Generate planned visuals for the article."],
+  ["final-review", "Final Review", "Pause for your review of the completed draft."],
+  ["final-blog", "Final Blog", "Finalize the approved article."],
+] as const;
 
-function stepState(i: number, run: RunDetail) {
-  const current = run.workflow_step
-    ? STEPS.findIndex(([id]) => id === run.workflow_step)
-    : -1;
+type StepState = "completed" | "running" | "waiting" | "failed" | "pending";
 
-  if (run.status === "pending") {
-    return i === 0 ? "running" : "pending";
-  }
-
-  if (run.status === "completed") {
-    return "completed";
-  }
-
-  if (run.status === "failed") {
-    return current < 0
-      ? i === 0
-        ? "failed"
-        : "pending"
-      : i < current
-        ? "completed"
-        : i === current
-          ? "failed"
-          : "pending";
-  }
-
-  if (run.status === "interrupted") {
-    return current < 0
-      ? "pending"
-      : i < current
-        ? "completed"
-        : i === current
-          ? "waiting"
-          : "pending";
-  }
-
-  if (current < 0) {
-    return "pending";
-  }
-
-  return i < current ? "completed" : i === current ? "running" : "pending";
+function stepState(index: number, run: RunDetail): StepState {
+  const current = run.workflow_step ? STEPS.findIndex(([id]) => id === run.workflow_step) : -1;
+  if (run.status === "completed") return "completed";
+  if (run.status === "failed") return current < 0 ? (index === 0 ? "failed" : "pending") : index < current ? "completed" : index === current ? "failed" : "pending";
+  if (run.status === "interrupted") return current < 0 ? "pending" : index < current ? "completed" : index === current ? "waiting" : "pending";
+  if (current < 0) return index === 0 ? "running" : "pending";
+  return index < current ? "completed" : index === current ? "running" : "pending";
 }
 
-function getHeaderStatus(status: RunDetail["status"]) {
-  switch (status) {
-    case "running":
-      return {
-        label: "Running",
-        icon: "●",
-        className: "bg-indigo-50 text-indigo-600 border-indigo-200",
-      };
-
-    case "completed":
-      return {
-        label: "Completed",
-        icon: "✓",
-        className: "bg-green-50 text-green-600 border-green-200",
-      };
-
-    case "interrupted":
-      return {
-        label: "Waiting for review",
-        icon: "Ⅱ",
-        className: "bg-amber-50 text-amber-600 border-amber-200",
-      };
-
-    case "failed":
-      return {
-        label: "Failed",
-        icon: "×",
-        className: "bg-red-50 text-red-600 border-red-200",
-      };
-
-    case "pending":
-    default:
-      return {
-        label: "Pending",
-        icon: "○",
-        className: "bg-slate-50 text-slate-500 border-slate-200",
-      };
-  }
+function headerStatus(status: RunDetail["status"]) {
+  if (status === "completed") return ["Completed", "✓", "border-green-200 bg-green-50 text-green-700"] as const;
+  if (status === "failed") return ["Failed", "×", "border-red-200 bg-red-50 text-red-700"] as const;
+  if (status === "interrupted") return ["Waiting for review", "Ⅱ", "border-amber-200 bg-amber-50 text-amber-700"] as const;
+  if (status === "running") return ["Running", "●", "border-indigo-200 bg-indigo-50 text-indigo-700"] as const;
+  return ["Pending", "○", "border-slate-200 bg-slate-50 text-slate-600"] as const;
 }
 
-export default function WorkflowPage({
-  navigate,
-  runId,
-}: {
-  navigate: NavFn;
-  runId: string;
-}) {
+export default function WorkflowPage({ navigate, runId }: { navigate: NavFn; runId: string }) {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
-
-    const poll = () =>
-      api
-        .getRun(runId)
-        .then((r) => {
-          if (alive) {
-            setRun(r);
-          }
-        })
-        .catch((e) => setError(e.message));
-
+    const poll = () => api.getRun(runId).then((data) => alive && setRun(data)).catch((e) => alive && setError(e instanceof Error ? e.message : "Unable to load workflow."));
     poll();
-
-    const t = setInterval(poll, 1500);
-
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
+    const timer = window.setInterval(poll, 1500);
+    return () => { alive = false; window.clearInterval(timer); };
   }, [runId]);
 
-  const statuses = useMemo(
-    () => (run ? STEPS.map((_, i) => stepState(i, run)) : []),
-    [run],
-  );
+  const statuses = useMemo(() => run ? STEPS.map((_, index) => stepState(index, run)) : [], [run]);
+  if (!run) return <div className="grid h-full place-items-center"><LoadingSpinner size="lg" /></div>;
 
-  if (!run) {
-    return (
-      <div className="h-full grid place-items-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  const done =
-    run.status === "completed"
-      ? STEPS.length
-      : statuses.filter((s) => s === "completed").length;
-
-  const headerStatus = getHeaderStatus(run.status);
+  const completed = run.status === "completed" ? STEPS.length : statuses.filter((status) => status === "completed").length;
+  const activeIndex = statuses.findIndex((status) => status === "running" || status === "waiting" || status === "failed");
+  const progress = Math.round((completed / STEPS.length) * 100);
+  const [label, icon, className] = headerStatus(run.status);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-sm font-semibold">
-              {run.status === "completed"
-                ? "Blog generation complete"
-                : run.status === "failed"
-                  ? "Generation failed"
-                  : "Generating Blog"}
-            </h1>
-
-            <p className="text-xs text-slate-500 truncate">{run.topic}</p>
-          </div>
-
-          <div
-            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${headerStatus.className}`}
-          >
-            <span className="text-[10px]">{headerStatus.icon}</span>
-
-            <span>{headerStatus.label}</span>
-          </div>
+    <div className="flex h-full flex-col">
+      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Generation workflow</p><h1 className="mt-1 text-sm font-semibold text-slate-950">{run.status === "completed" ? "Blog generation complete" : run.status === "failed" ? "Generation failed" : "Generating your blog"}</h1><p className="mt-1 truncate text-xs text-slate-500">{run.topic}</p></div>
+          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${className}`}><span>{icon}</span>{label}</span>
         </div>
-
-        <div className="mt-3 h-1 bg-slate-100 rounded">
-          <div
-            className="h-full bg-indigo-600 rounded transition-all"
-            style={{
-              width: `${Math.round((done / STEPS.length) * 100)}%`,
-            }}
-          />
-        </div>
-      </div>
+        <div className="mt-4 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${progress}%` }} /></div><span className="text-xs font-medium text-slate-500">{progress}%</span></div>
+      </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="max-w-3xl mx-auto">
-          {error && <Alert variant="danger">{error}</Alert>}
+        <div className="mx-auto max-w-3xl">
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+          {run.error_message && <Alert variant="danger" className="mb-4" title="Generation error">{run.error_message}</Alert>}
+          {run.guardrail_msg && <Alert variant="warning" className="mb-4" title="Guardrail notice">{run.guardrail_msg}</Alert>}
 
-          {run.error_message && (
-            <Alert variant="danger">{run.error_message}</Alert>
-          )}
+          <div className="mb-4 flex items-end justify-between"><div><h2 className="text-sm font-semibold text-slate-900">Pipeline progress</h2><p className="mt-1 text-xs text-slate-500">{activeIndex >= 0 ? `Step ${activeIndex + 1} of ${STEPS.length}` : run.status === "completed" ? "All workflow steps completed" : "Preparing workflow"}</p></div><span className="text-xs text-slate-400">{completed} / {STEPS.length} complete</span></div>
 
-          {run.guardrail_msg && (
-            <div className="mb-4">
-              <Alert variant="warning">{run.guardrail_msg}</Alert>
-            </div>
-          )}
-
-          <div className="bg-white border border-slate-200 rounded-xl divide-y">
-            {STEPS.map(([id, label], i) => {
-              const s = statuses[i];
-
-              return (
-                <div key={id} className="p-4 flex items-center gap-4">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      s === "completed"
-                        ? "bg-green-50 text-green-600"
-                        : s === "running"
-                          ? "bg-indigo-50 text-indigo-600"
-                          : s === "waiting"
-                            ? "bg-amber-50 text-amber-600"
-                            : s === "failed"
-                              ? "bg-red-50 text-red-600"
-                              : "bg-slate-50 text-slate-400"
-                    }`}
-                  >
-                    {s === "completed"
-                      ? "✓"
-                      : s === "failed"
-                        ? "×"
-                        : s === "running"
-                          ? "•"
-                          : s === "waiting"
-                            ? "Ⅱ"
-                            : "○"}
-                  </div>
-
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-800">
-                      {label}
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {s === "running"
-                        ? "Running now"
-                        : s === "waiting"
-                          ? "Waiting for your review"
-                          : s === "completed"
-                            ? "Completed"
-                            : s === "failed"
-                              ? "Failed"
-                              : "Pending"}
-                    </p>
-                  </div>
-
-                  {s === "waiting" && (
-                    <Badge variant="warning">Review required</Badge>
-                  )}
-                </div>
-              );
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            {STEPS.map(([id, stepLabel, description], index) => {
+              const state = statuses[index];
+              return <div key={id} className={`flex items-start gap-4 border-b border-slate-100 p-4 last:border-b-0 sm:p-5 ${state === "running" ? "bg-indigo-50/40" : state === "waiting" ? "bg-amber-50/40" : ""}`}>
+                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${state === "completed" ? "bg-green-50 text-green-600" : state === "running" ? "bg-indigo-50 text-indigo-600" : state === "waiting" ? "bg-amber-50 text-amber-600" : state === "failed" ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-400"}`}>{state === "completed" ? "✓" : state === "failed" ? "×" : state === "running" ? "•" : state === "waiting" ? "Ⅱ" : "○"}</div>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{stepLabel}</p><p className="mt-1 text-xs leading-5 text-slate-500">{description}</p><p className="mt-1.5 text-xs font-medium text-slate-400">{state === "running" ? "Running now" : state === "waiting" ? "Waiting for your review" : state === "completed" ? "Completed" : state === "failed" ? "Failed" : "Pending"}</p></div>
+                {state === "waiting" && <Badge variant="warning">Review required</Badge>}
+              </div>;
             })}
           </div>
 
-          {run.interrupt_type === "research_plan_review" && (
-            <div className="mt-5 flex justify-end">
-              <Button
-                onClick={() =>
-                  navigate({
-                    section: "app",
-                    page: "outline-review",
-                  })
-                }
-              >
-                Review Outline
-              </Button>
-            </div>
-          )}
-
-          {run.interrupt_type === "final_draft_review" && (
-            <div className="mt-5 flex justify-end">
-              <Button
-                onClick={() =>
-                  navigate({
-                    section: "app",
-                    page: "blog-workspace",
-                  })
-                }
-              >
-                Review Draft
-              </Button>
-            </div>
-          )}
-
-          {run.status === "completed" && (
-            <div className="mt-5 flex justify-end">
-              <Button
-                onClick={() =>
-                  navigate({
-                    section: "app",
-                    page: "blog-workspace",
-                  })
-                }
-              >
-                Open Blog
-              </Button>
-            </div>
-          )}
+          <div className="mt-5 flex justify-end">
+            {run.interrupt_type === "research_plan_review" && <Button onClick={() => navigate({ section: "app", page: "outline-review" })}>Review outline</Button>}
+            {run.interrupt_type === "final_draft_review" && <Button onClick={() => navigate({ section: "app", page: "blog-workspace" })}>Review draft</Button>}
+            {run.status === "completed" && <Button onClick={() => navigate({ section: "app", page: "blog-workspace" })}>Open blog</Button>}
+          </div>
         </div>
       </div>
     </div>

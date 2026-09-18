@@ -6,9 +6,9 @@ import { api, type AuthResponse } from "../services/api";
 const TechVisual = () => (
   <div className="absolute inset-0 bg-[#0B1020] overflow-hidden">
     <svg
-      className="absolute inset-0 w-full h-full"
+      className="absolute inset-0 w-full h-full scale-110 translate-y-8"
       viewBox="0 0 480 640"
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio="xMidYMid meet"
     >
       <defs>
         <pattern
@@ -351,17 +351,6 @@ const TechVisual = () => (
     </svg>
 
     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B1020] to-transparent h-32" />
-
-    <div className="absolute bottom-8 left-8 right-8">
-      <p className="text-slate-400 text-sm font-medium leading-relaxed">
-        "BlogForge produces documentation-quality technical blogs with
-        transparent AI workflow and evidence-grounded writing."
-      </p>
-
-      <p className="text-slate-600 text-xs mt-2">
-        — Alex Chen, Platform Engineer
-      </p>
-    </div>
   </div>
 );
 
@@ -402,17 +391,19 @@ export function LoginPage({
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:block relative flex-1 min-h-screen">
+    <div className="min-h-screen w-full flex overflow-x-hidden bg-slate-50">
+      {/* 50% VISUAL SIDE */}
+      <div className="hidden lg:block relative w-[50%] h-screen overflow-hidden">
         <TechVisual />
 
-        <div className="absolute top-8 left-8">
+        <div className="absolute top-8 left-8 z-10">
           <BlogForgeLogo dark />
         </div>
       </div>
 
-      <div className="flex-1 lg:max-w-md xl:max-w-lg flex flex-col items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-sm">
+      {/* 50% AUTH SIDE */}
+      <div className="w-full lg:w-[50%] min-h-screen lg:h-screen flex items-center justify-center overflow-y-auto p-6 sm:p-10 lg:items-start lg:pt-8 lg:pb-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60 p-7 sm:p-9">
           <div className="lg:hidden mb-8">
             <BlogForgeLogo />
           </div>
@@ -460,7 +451,7 @@ export function LoginPage({
             </div>
           </div>
 
-          <div className="mt-5 pt-5 border-t border-slate-200 text-center">
+          <div className="mt-6 pt-5 border-t border-slate-200 text-center">
             <p className="text-sm text-slate-500">
               {"Don't have an account?"}
 
@@ -471,7 +462,7 @@ export function LoginPage({
                     page: "register",
                   })
                 }
-                className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700"
+                className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
               >
                 Create an account
               </button>
@@ -551,17 +542,19 @@ export function RegisterPage({ navigate }: RegisterPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:block relative flex-1 min-h-screen">
+    <div className="min-h-screen w-full flex overflow-x-hidden bg-slate-50">
+      {/* 50% VISUAL SIDE */}
+      <div className="hidden lg:block relative w-[50%] h-screen overflow-hidden">
         <TechVisual />
 
-        <div className="absolute top-8 left-8">
+        <div className="absolute top-8 left-8 z-10">
           <BlogForgeLogo dark />
         </div>
       </div>
 
-      <div className="flex-1 lg:max-w-md xl:max-w-lg flex flex-col items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-sm">
+      {/* 50% AUTH SIDE */}
+      <div className="w-full lg:w-[50%] min-h-screen lg:h-screen flex items-center justify-center overflow-y-auto p-6 sm:p-10 lg:items-start lg:pt-8 lg:pb-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60 p-7 sm:p-9">
           <div className="lg:hidden mb-8">
             <BlogForgeLogo />
           </div>
@@ -657,7 +650,7 @@ export function RegisterPage({ navigate }: RegisterPageProps) {
             </div>
           </div>
 
-          <div className="mt-5 pt-5 border-t border-slate-200 text-center">
+          <div className="mt-6 pt-5 border-t border-slate-200 text-center">
             <p className="text-sm text-slate-500">
               Already have an account?
               <button
@@ -667,7 +660,7 @@ export function RegisterPage({ navigate }: RegisterPageProps) {
                     page: "login",
                   })
                 }
-                className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700"
+                className="ml-1.5 text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
               >
                 Sign in
               </button>

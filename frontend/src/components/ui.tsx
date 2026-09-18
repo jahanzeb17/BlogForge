@@ -49,10 +49,12 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${
+        fullWidth ? "w-full" : ""
+      } ${className}`}
     >
       {loading && (
-        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+        <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle
             className="opacity-25"
             cx="12"
@@ -68,6 +70,7 @@ export function Button({
           />
         </svg>
       )}
+
       {children}
     </button>
   );
@@ -115,13 +118,17 @@ export function Badge({
     cyan: "bg-cyan-500",
   };
 
-  const sizes = { sm: "px-2 py-0.5 text-xs", md: "px-2.5 py-1 text-sm" };
+  const sizes = {
+    sm: "px-2 py-0.5 text-xs",
+    md: "px-2.5 py-1 text-sm",
+  };
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded font-medium ${variants[variant]} ${sizes[size]}`}
     >
-      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dots[variant]}`} />}
+      {dot && <span className={`h-1.5 w-1.5 rounded-full ${dots[variant]}`} />}
+
       {children}
     </span>
   );
@@ -129,20 +136,50 @@ export function Badge({
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
 
-type RunStatus = "draft" | "running" | "waiting" | "completed" | "failed";
+type RunStatus =
+  | "draft"
+  | "pending"
+  | "running"
+  | "waiting"
+  | "completed"
+  | "failed";
 
 export function StatusBadge({ status }: { status: RunStatus }) {
   const map: Record<
     RunStatus,
-    { label: string; variant: BadgeProps["variant"] }
+    {
+      label: string;
+      variant: BadgeProps["variant"];
+    }
   > = {
-    draft: { label: "Draft", variant: "default" },
-    running: { label: "Running", variant: "info" },
-    waiting: { label: "Waiting", variant: "warning" },
-    completed: { label: "Completed", variant: "success" },
-    failed: { label: "Failed", variant: "danger" },
+    draft: {
+      label: "Draft",
+      variant: "default",
+    },
+    pending: {
+      label: "Pending",
+      variant: "default",
+    },
+    running: {
+      label: "Running",
+      variant: "info",
+    },
+    waiting: {
+      label: "Waiting",
+      variant: "warning",
+    },
+    completed: {
+      label: "Completed",
+      variant: "success",
+    },
+    failed: {
+      label: "Failed",
+      variant: "danger",
+    },
   };
+
   const { label, variant } = map[status];
+
   return (
     <Badge variant={variant} dot>
       {label}
@@ -162,6 +199,7 @@ interface InputProps {
   hint?: string;
   className?: string;
   autoFocus?: boolean;
+  id?: string;
 }
 
 export function Input({
@@ -174,6 +212,7 @@ export function Input({
   hint,
   className = "",
   autoFocus,
+  id,
 }: InputProps) {
   const [show, setShow] = useState(false);
   const isPassword = type === "password";
@@ -181,30 +220,39 @@ export function Input({
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+          {label}
+        </label>
       )}
+
       <div className="relative">
         <input
+          id={id}
           type={isPassword ? (show ? "text" : "password") : type}
           placeholder={placeholder}
           value={value}
           autoFocus={autoFocus}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full rounded-md border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
+          className={`w-full rounded-md border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
             error ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
           }`}
         />
+
         {isPassword && (
           <button
             type="button"
             onClick={() => setShow(!show)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+            aria-label={show ? "Hide password" : "Show password"}
+            aria-pressed={show}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded px-1 text-xs text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {show ? "Hide" : "Show"}
           </button>
         )}
       </div>
+
       {error && <p className="text-xs text-red-600">{error}</p>}
+
       {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
     </div>
   );
@@ -221,6 +269,7 @@ interface TextareaProps {
   error?: string;
   className?: string;
   autoFocus?: boolean;
+  id?: string;
 }
 
 export function Textarea({
@@ -232,22 +281,28 @@ export function Textarea({
   error,
   className = "",
   autoFocus,
+  id,
 }: TextareaProps) {
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+          {label}
+        </label>
       )}
+
       <textarea
+        id={id}
         placeholder={placeholder}
         value={value}
         rows={rows}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full rounded-md border px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-all ${
+        className={`w-full resize-none rounded-md border px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
           error ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
         }`}
       />
+
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
@@ -259,8 +314,12 @@ interface SelectProps {
   label?: string;
   value: string;
   onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+  options: {
+    value: string;
+    label: string;
+  }[];
   className?: string;
+  id?: string;
 }
 
 export function Select({
@@ -269,16 +328,21 @@ export function Select({
   onChange,
   options,
   className = "",
+  id,
 }: SelectProps) {
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+          {label}
+        </label>
       )}
+
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -300,7 +364,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`bg-white border border-slate-200 rounded-lg ${className}`}>
+    <div className={`rounded-lg border border-slate-200 bg-white ${className}`}>
       {children}
     </div>
   );
@@ -309,7 +373,11 @@ export function Card({
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 interface TabsProps {
-  tabs: { id: string; label: string; count?: number }[];
+  tabs: {
+    id: string;
+    label: string;
+    count?: number;
+  }[];
   active: string;
   onChange: (id: string) => void;
   className?: string;
@@ -317,21 +385,32 @@ interface TabsProps {
 
 export function Tabs({ tabs, active, onChange, className = "" }: TabsProps) {
   return (
-    <div className={`flex gap-0 border-b border-slate-200 ${className}`}>
+    <div
+      className={`flex gap-0 border-b border-slate-200 ${className}`}
+      role="tablist"
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap -mb-px ${
+          className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-all ${
             active === tab.id
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
           {tab.label}
+
           {tab.count !== undefined && (
             <span
-              className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${active === tab.id ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"}`}
+              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs ${
+                active === tab.id
+                  ? "bg-indigo-100 text-indigo-600"
+                  : "bg-slate-100 text-slate-500"
+              }`}
             >
               {tab.count}
             </span>
@@ -356,23 +435,23 @@ export function Avatar({
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2);
-  const colors = [
-    "bg-indigo-500",
-    "bg-violet-500",
-    "bg-cyan-500",
-    "bg-emerald-500",
-    "bg-rose-500",
-  ];
-  const color = colors[name.charCodeAt(0) % colors.length];
+
+  /*
+   * Changed: every user now receives the same
+   * indigo-blue avatar color for a consistent
+   * BlogForge identity across the application.
+   */
+  const color = "bg-indigo-600";
+
   const sizes = {
-    sm: "w-7 h-7 text-xs",
-    md: "w-9 h-9 text-sm",
-    lg: "w-11 h-11 text-base",
+    sm: "h-7 w-7 text-xs",
+    md: "h-9 w-9 text-sm",
+    lg: "h-11 w-11 text-base",
   };
 
   return (
     <div
-      className={`${color} ${sizes[size]} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0`}
+      className={`${color} ${sizes[size]} flex flex-shrink-0 items-center justify-center rounded-full font-semibold text-white`}
     >
       {initials}
     </div>
@@ -405,11 +484,13 @@ export function MetricCard({
 
   return (
     <Card className="p-5">
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
         {label}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${colors[color]}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+
+      <p className={`mt-1 text-2xl font-bold ${colors[color]}`}>{value}</p>
+
+      {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
     </Card>
   );
 }
@@ -430,12 +511,15 @@ export function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       {icon && <div className="mb-4 text-slate-300">{icon}</div>}
+
       <h3 className="text-base font-semibold text-slate-700">{title}</h3>
+
       {description && (
-        <p className="text-sm text-slate-500 mt-1 max-w-sm">{description}</p>
+        <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>
       )}
+
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -450,12 +534,19 @@ export function LoadingSpinner({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const sizes = { sm: "h-4 w-4", md: "h-6 w-6", lg: "h-8 w-8" };
+  const sizes = {
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
+  };
+
   return (
     <svg
       className={`animate-spin ${sizes[size]} ${className}`}
       fill="none"
       viewBox="0 0 24 24"
+      role="status"
+      aria-label="Loading"
     >
       <circle
         className="opacity-25"
@@ -465,6 +556,7 @@ export function LoadingSpinner({
         stroke="currentColor"
         strokeWidth="4"
       />
+
       <path
         className="opacity-75"
         fill="currentColor"
@@ -493,14 +585,25 @@ export function Modal({
   footer,
   size = "md",
 }: ModalProps) {
-  const sizes = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" };
+  const sizes = {
+    sm: "max-w-sm",
+    md: "max-w-lg",
+    lg: "max-w-2xl",
+  };
+
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+      }
     };
-    if (open) document.addEventListener("keydown", handler);
+
+    if (open) {
+      document.addEventListener("keydown", handler);
+    }
+
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
@@ -513,21 +616,35 @@ export function Modal({
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
         onClick={onClose}
       />
+
       <div
-        className={`relative bg-white rounded-xl shadow-2xl w-full ${sizes[size]} flex flex-col max-h-[90vh]`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="blogforge-modal-title"
+        className={`relative flex max-h-[90vh] w-full flex-col rounded-xl bg-white shadow-2xl ${sizes[size]}`}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <h2
+            id="blogforge-modal-title"
+            className="text-base font-semibold text-slate-900"
+          >
+            {title}
+          </h2>
+
           <button
+            type="button"
+            aria-label="Close dialog"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+            className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             ×
           </button>
         </div>
+
         <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-200">{footer}</div>
+          <div className="border-t border-slate-200 px-6 py-4">{footer}</div>
         )}
       </div>
     </div>
@@ -557,8 +674,12 @@ export function Alert({
   };
 
   return (
-    <div className={`border rounded-lg p-4 ${styles[variant]} ${className}`}>
-      {title && <p className="font-semibold text-sm mb-1">{title}</p>}
+    <div
+      className={`rounded-lg border p-4 ${styles[variant]} ${className}`}
+      role="alert"
+    >
+      {title && <p className="mb-1 text-sm font-semibold">{title}</p>}
+
       <div className="text-sm">{children}</div>
     </div>
   );
@@ -579,16 +700,26 @@ export function BlogForgeLogo({
   dark?: boolean;
   size?: "sm" | "md" | "lg";
 }) {
-  const textSize = { sm: "text-base", md: "text-lg", lg: "text-xl" };
-  const iconSize = { sm: "w-6 h-6", md: "w-7 h-7", lg: "w-8 h-8" };
+  const textSize = {
+    sm: "text-base",
+    md: "text-lg",
+    lg: "text-xl",
+  };
+
+  const iconSize = {
+    sm: "h-6 w-6",
+    md: "h-7 w-7",
+    lg: "h-8 w-8",
+  };
 
   return (
     <div className="flex items-center gap-2.5">
       <div
-        className={`${iconSize[size]} rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0`}
+        className={`${iconSize[size]} flex flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600`}
       >
-        <svg viewBox="0 0 28 28" fill="none" className="w-4 h-4">
+        <svg viewBox="0 0 28 28" fill="none" className="h-4 w-4">
           <rect x="4" y="5" width="16" height="2.5" rx="1.25" fill="white" />
+
           <rect
             x="4"
             y="10"
@@ -598,6 +729,7 @@ export function BlogForgeLogo({
             fill="white"
             fillOpacity="0.7"
           />
+
           <rect
             x="4"
             y="15"
@@ -607,7 +739,9 @@ export function BlogForgeLogo({
             fill="white"
             fillOpacity="0.7"
           />
+
           <circle cx="22" cy="20" r="5" fill="#818CF8" />
+
           <path
             d="M20 20l1.5 1.5L24 18"
             stroke="white"
@@ -617,10 +751,14 @@ export function BlogForgeLogo({
           />
         </svg>
       </div>
+
       <span
-        className={`font-bold tracking-tight ${textSize[size]} ${dark ? "text-white" : "text-slate-900"}`}
+        className={`font-bold tracking-tight ${textSize[size]} ${
+          dark ? "text-white" : "text-slate-900"
+        }`}
       >
-        Blog<span className="text-indigo-600">Forge</span>
+        Blog
+        <span className="text-indigo-600">Forge</span>
       </span>
     </div>
   );

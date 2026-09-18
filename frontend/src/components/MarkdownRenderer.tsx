@@ -84,6 +84,7 @@ function AuthenticatedImage({ src, alt, title }: AuthenticatedImageProps) {
       src={imageSrc}
       alt={alt}
       title={title}
+      loading="lazy"
       className="my-5 max-w-full rounded-lg border border-slate-200"
     />
   );
@@ -320,7 +321,8 @@ export default function MarkdownRenderer({ markdown, runId }: Props) {
         "text-sm font-semibold mt-4 mb-2",
       ][level];
 
-      const Tag = `h${level}` as any;
+      const headingTags = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+      const Tag = headingTags[level - 1] ?? "h2";
 
       blocks.push(
         <Tag key={blockKey++} className={classes}>

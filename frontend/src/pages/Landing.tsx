@@ -1,15 +1,42 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { type NavFn } from "../types";
 import { Button, BlogForgeLogo, Badge } from "../components/ui";
 
-// ─── Hero visual (SVG workflow diagram) ──────────────────────────────────────
-
 const HeroWorkflowVisual = () => (
-  <div className="relative w-full rounded-2xl overflow-hidden bg-[#080D1A] border border-slate-800 shadow-2xl">
+  <motion.div
+    initial={{ opacity: 0, scale: 0.96, y: 24 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    transition={{ duration: 0.8, ease: "easeOut", delay: 0.25 }}
+    className="relative w-full rounded-2xl overflow-hidden bg-[#080D1A] border border-slate-800 shadow-2xl"
+  >
     <svg
       viewBox="0 0 560 380"
       className="w-full h-full"
       style={{ minHeight: 280 }}
     >
+      <style>
+        {`
+          @keyframes pulse-ring {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 0.25;
+            }
+
+            50% {
+              transform: scale(1.12);
+              opacity: 0.55;
+            }
+          }
+
+          .animate-pulse-ring {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: pulse-ring 2s ease-in-out infinite;
+          }
+        `}
+      </style>
+
       <defs>
         <pattern
           id="hero-dots"
@@ -21,6 +48,7 @@ const HeroWorkflowVisual = () => (
         >
           <circle cx="1" cy="1" r="0.9" fill="#4F46E5" opacity="0.15" />
         </pattern>
+
         <filter id="hero-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="7" result="coloredBlur" />
           <feMerge>
@@ -28,6 +56,7 @@ const HeroWorkflowVisual = () => (
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+
         <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="4" result="coloredBlur" />
           <feMerge>
@@ -35,11 +64,13 @@ const HeroWorkflowVisual = () => (
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+
         <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#4F46E5" stopOpacity="0" />
           <stop offset="50%" stopColor="#4F46E5" stopOpacity="0.6" />
           <stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
         </linearGradient>
+
         <linearGradient id="cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#06B6D4" stopOpacity="0" />
           <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.5" />
@@ -83,6 +114,7 @@ const HeroWorkflowVisual = () => (
       <circle cx="36" cy="35" r="4" fill="#FF5F57" />
       <circle cx="50" cy="35" r="4" fill="#FFBD2E" />
       <circle cx="64" cy="35" r="4" fill="#28CA41" />
+
       <text
         x="28"
         y="56"
@@ -92,6 +124,7 @@ const HeroWorkflowVisual = () => (
       >
         from langchain import RAGPipeline
       </text>
+
       <text
         x="28"
         y="68"
@@ -101,6 +134,7 @@ const HeroWorkflowVisual = () => (
       >
         class BlogAgent(RAGPipeline):
       </text>
+
       <text
         x="28"
         y="80"
@@ -123,6 +157,7 @@ const HeroWorkflowVisual = () => (
         stroke="#1E2D4A"
         strokeWidth="1"
       />
+
       <text
         x="356"
         y="40"
@@ -133,39 +168,42 @@ const HeroWorkflowVisual = () => (
       >
         Sources collected
       </text>
-      <text
+
+      <rect
         x="356"
-        y="62"
-        fill="#F8FAFC"
-        fontSize="20"
-        fontWeight="bold"
-        fontFamily="Inter, sans-serif"
-      >
-        24
-      </text>
+        y="54"
+        width="88"
+        height="18"
+        rx="4"
+        fill="#0F3460"
+        stroke="#1E2D4A"
+        strokeWidth="1"
+      />
+
       <text
-        x="392"
-        y="62"
-        fill="#64748B"
-        fontSize="8.5"
-        fontFamily="Inter, sans-serif"
-      >
-        trusted technical sources
-      </text>
-      <rect x="356" y="72" width="55" height="10" rx="3" fill="#0F3460" />
-      <text
-        x="361"
-        y="80"
+        x="364"
+        y="66"
         fill="#60A5FA"
         fontSize="6.5"
         fontFamily="JetBrains Mono, monospace"
       >
         docs.langchain.com
       </text>
-      <rect x="416" y="72" width="40" height="10" rx="3" fill="#0F3460" />
+
+      <rect
+        x="450"
+        y="54"
+        width="72"
+        height="18"
+        rx="4"
+        fill="#0F3460"
+        stroke="#1E2D4A"
+        strokeWidth="1"
+      />
+
       <text
-        x="421"
-        y="80"
+        x="460"
+        y="66"
         fill="#60A5FA"
         fontSize="6.5"
         fontFamily="JetBrains Mono, monospace"
@@ -193,6 +231,7 @@ const HeroWorkflowVisual = () => (
         strokeWidth="1.5"
         filter="url(#soft-glow)"
       />
+
       <text
         x="75"
         y="183"
@@ -203,6 +242,7 @@ const HeroWorkflowVisual = () => (
       >
         ✓ TOPIC
       </text>
+
       <text
         x="75"
         y="196"
@@ -214,6 +254,7 @@ const HeroWorkflowVisual = () => (
       >
         Guardrail
       </text>
+
       <text
         x="75"
         y="207"
@@ -235,6 +276,8 @@ const HeroWorkflowVisual = () => (
         strokeWidth="2"
         filter="url(#hero-glow)"
       />
+
+      {/* This is the only restored animation */}
       <circle
         cx="210"
         cy="190"
@@ -245,6 +288,7 @@ const HeroWorkflowVisual = () => (
         opacity="0.25"
         className="animate-pulse-ring"
       />
+
       <text
         x="210"
         y="183"
@@ -255,6 +299,7 @@ const HeroWorkflowVisual = () => (
       >
         ● PLAN
       </text>
+
       <text
         x="210"
         y="196"
@@ -266,6 +311,7 @@ const HeroWorkflowVisual = () => (
       >
         Outline Gen
       </text>
+
       <text
         x="210"
         y="208"
@@ -286,6 +332,7 @@ const HeroWorkflowVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="350"
         y="183"
@@ -296,6 +343,7 @@ const HeroWorkflowVisual = () => (
       >
         ○ RESEARCH
       </text>
+
       <text
         x="350"
         y="196"
@@ -306,6 +354,7 @@ const HeroWorkflowVisual = () => (
       >
         Web Search
       </text>
+
       <text
         x="350"
         y="207"
@@ -326,6 +375,7 @@ const HeroWorkflowVisual = () => (
         stroke="#334155"
         strokeWidth="1"
       />
+
       <text
         x="490"
         y="183"
@@ -336,6 +386,7 @@ const HeroWorkflowVisual = () => (
       >
         ○ PUBLISH
       </text>
+
       <text
         x="490"
         y="196"
@@ -346,6 +397,7 @@ const HeroWorkflowVisual = () => (
       >
         Export
       </text>
+
       <text
         x="490"
         y="207"
@@ -368,6 +420,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 1
       </text>
+
       <text
         x="210"
         y="248"
@@ -378,6 +431,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 2 — Active
       </text>
+
       <text
         x="350"
         y="242"
@@ -388,6 +442,7 @@ const HeroWorkflowVisual = () => (
       >
         Step 5
       </text>
+
       <text
         x="490"
         y="242"
@@ -410,6 +465,7 @@ const HeroWorkflowVisual = () => (
         stroke="#1E2D4A"
         strokeWidth="1"
       />
+
       <text
         x="106"
         y="305"
@@ -430,33 +486,36 @@ const HeroWorkflowVisual = () => (
         <g key={s.label}>
           <text
             x={106}
-            y={323 + i * 11}
+            y={321 + i * 10}
             fill="#475569"
             fontSize="7"
             fontFamily="JetBrains Mono, monospace"
           >
             {s.label}
           </text>
+
           <rect
             x={175}
-            y={315 + i * 11}
+            y={313 + i * 10}
             width={200}
             height={7}
             rx={3}
             fill="#1E293B"
           />
+
           <rect
             x={175}
-            y={315 + i * 11}
+            y={313 + i * 10}
             width={s.w * 2}
             height={7}
             rx={3}
             fill={s.c}
             opacity={0.7}
           />
+
           <text
             x={385}
-            y={321 + i * 11}
+            y={319 + i * 10}
             fill="#64748B"
             fontSize="7"
             fontFamily="Inter, sans-serif"
@@ -483,14 +542,14 @@ const HeroWorkflowVisual = () => (
     <div className="absolute top-3 right-3">
       <div className="flex items-center gap-1.5 bg-indigo-950/80 border border-indigo-800/60 rounded-full px-2.5 py-1">
         <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+
         <span className="text-xs text-indigo-300 font-medium">
           Live preview
         </span>
       </div>
     </div>
-  </div>
+  </motion.div>
 );
-
 // ─── Capabilities ─────────────────────────────────────────────────────────────
 
 const capabilities = [
@@ -588,27 +647,48 @@ const workflowSteps = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Landing({ navigate }: { navigate: NavFn }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const goToRegister = () => {
+    navigate({
+      section: "public",
+      page: "register",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
           <BlogForgeLogo />
+
+          {/* Desktop navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a
-              href="#"
-              className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            <button
+              type="button"
+              onClick={() => navigate({ section: "public", page: "blogs" })}
+              className="text-sm text-slate-600 transition-colors hover:text-indigo-600"
             >
               Blogs
-            </a>
-            <a
-              href="#"
-              className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate({ section: "public", page: "about" })}
+              className="text-sm text-slate-600 transition-colors hover:text-indigo-600"
             >
               About Us
-            </a>
+            </button>
           </nav>
-          <div className="flex items-center gap-2">
+
+          {/* Desktop actions */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="hidden md:flex items-center gap-2"
+          >
             <Button
               variant="ghost"
               size="sm"
@@ -616,18 +696,149 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
             >
               Login
             </Button>
-            <Button
-              size="sm"
-              onClick={() => navigate({ section: "public", page: "register" })}
-            >
+
+            <Button size="sm" onClick={goToRegister}>
               Get Started
             </Button>
-          </div>
+          </motion.div>
+
+          {/* Mobile menu button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex md:hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition-colors hover:bg-slate-100 hover:text-indigo-600"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile right-side drawer */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              className="fixed inset-0 z-[100] md:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Overlay */}
+              <button
+                type="button"
+                aria-label="Close navigation menu"
+                onClick={() => setMobileMenuOpen(false)}
+                className="absolute inset-0 z-0 bg-slate-950/40"
+              />
+
+              {/* Drawer */}
+              <motion.aside
+                className="absolute right-0 top-0 z-10 flex h-full w-[280px] max-w-[85vw] flex-col bg-white shadow-2xl"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                    <span className="text-sm font-semibold text-slate-900">
+                      BlogForge
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    aria-label="Close navigation menu"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 6l12 12M18 6L6 18"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <nav className="flex flex-1 flex-col gap-2 bg-white p-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate({ section: "public", page: "blogs" });
+                    }}
+                    className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                  >
+                    Blogs
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate({ section: "public", page: "about" });
+                    }}
+                    className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                  >
+                    About Us
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate({ section: "public", page: "login" });
+                    }}
+                    className="rounded-lg border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    Login
+                  </button>
+
+                  <Button
+                    className="mt-0"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      goToRegister();
+                    }}
+                  >
+                    Get Started
+                  </Button>
+                </nav>
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Hero */}
-      <section className="bg-[#060B16] py-16 lg:py-24 px-4 relative overflow-hidden">
+      <motion.section
+        className="bg-[#060B16] py-12 lg:py-15 px-4 relative overflow-hidden"
+        initial="hidden"
+        animate="visible"
+      >
         {/* Subtle radial bg */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600 opacity-5 blur-3xl rounded-full" />
@@ -637,14 +848,24 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left */}
             <div>
-              <div className="inline-flex items-center gap-2 bg-indigo-950/80 border border-indigo-800/60 rounded-full px-3 py-1 mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55 }}
+                className="inline-flex items-center gap-2 bg-indigo-950/80 border border-indigo-800/60 rounded-full px-3 py-1 mb-6"
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs text-indigo-300 font-medium">
-                  Multi-agent AI platform · 12-step workflow
+                  Multi-agent AI platform
                 </span>
-              </div>
+              </motion.div>
 
-              <h1 className="text-4xl lg:text-[2.75rem] xl:text-5xl font-bold text-white leading-[1.15] tracking-tight">
+              <motion.h1
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.1 }}
+                className="text-4xl lg:text-[2.75rem] xl:text-5xl font-bold text-white leading-[1.15] tracking-tight"
+              >
                 Turn Ideas Into
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
@@ -652,14 +873,24 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                 </span>
                 <br />
                 Technical Blogs
-              </h1>
+              </motion.h1>
 
-              <p className="mt-5 text-slate-400 text-lg leading-relaxed max-w-[420px]">
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="mt-5 text-slate-400 text-lg leading-relaxed max-w-[420px]"
+              >
                 Create high-quality IT technical blogs using AI agents, live web
                 research, human review, and transparent workflow tracking.
-              </p>
+              </motion.p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="mt-8 flex flex-wrap gap-3"
+              >
                 <Button
                   size="lg"
                   onClick={() =>
@@ -684,13 +915,19 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800/50 hover:text-white hover:border-slate-600"
+                  className="border-slate-700 text-white lg:text-indigo-400 hover:bg-slate-800/50 hover:border-indigo-400 hover:text-white"
+                  onClick={() => navigate({ section: "public", page: "blogs" })}
                 >
                   Explore Blogs
                 </Button>
-              </div>
+              </motion.div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-5 text-sm text-slate-500">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.4 }}
+                className="mt-8 flex flex-wrap items-center gap-5 text-sm text-slate-500"
+              >
                 {[
                   "Source-backed writing",
                   "Human in the loop",
@@ -711,7 +948,7 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                     {item}
                   </div>
                 ))}
-              </div>
+              </motion.div>
             </div>
 
             {/* Right: visual */}
@@ -720,12 +957,47 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
             </div>
           </div>
         </div>
-      </section>
+
+        {/* Animated scroll indicator */}
+        <motion.div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-slate-500"
+          animate={{ y: [0, 7, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.2em]">
+            Scroll to explore
+          </span>
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </motion.div>
+      </motion.section>
 
       {/* Capabilities */}
-      <section className="py-16 px-4 bg-slate-50 border-y border-slate-200">
+      <motion.section
+        className="py-16 px-4 bg-[#EAECF0] border-y border-slate-300"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.15 }}
+      >
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10">
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: 25 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
             <p className="text-xs font-semibold text-indigo-600 uppercase tracking-widest mb-2">
               Platform capabilities
             </p>
@@ -736,63 +1008,135 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
               Every feature designed for producing credible, research-backed
               technical content that developers trust.
             </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          </motion.div>
+
+          <motion.div
+            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.1 } },
+            }}
+          >
             {capabilities.map((cap) => (
-              <div
+              <motion.div
                 key={cap.title}
-                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-sm transition-all"
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                whileHover={{ y: -5 }}
+                transition={{ duration: 0.55, ease: "easeOut" }}
+                className="bg-white border border-slate-300 rounded-xl p-5 hover:border-indigo-200 hover:shadow-md transition-all"
               >
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 border ${cap.accent}`}
                 >
                   {cap.icon}
                 </div>
+
                 <h3 className="font-semibold text-slate-900 mb-1.5">
                   {cap.title}
                 </h3>
+
                 <p className="text-sm text-slate-500 leading-relaxed">
                   {cap.desc}
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Workflow chain */}
-      <section className="py-14 px-4 bg-white">
+      <motion.section
+        className="py-14 px-4 bg-white"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.15 }}
+      >
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs font-semibold text-indigo-600 uppercase tracking-widest mb-2">
-            Transparent by design
-          </p>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">
-            End-to-end workflow you can follow
-          </h2>
-          <p className="text-slate-500 text-sm mb-8 max-w-md mx-auto">
-            No black-box generation. Watch every step, understand every source,
-            approve every plan.
-          </p>
-          <div className="flex items-center justify-center flex-wrap gap-1">
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-widest mb-2">
+              Transparent by design
+            </p>
+
+            <h2 className="text-xl font-bold text-slate-900 mb-2">
+              End-to-end workflow you can follow
+            </h2>
+
+            <p className="text-slate-500 text-sm mb-8 max-w-md mx-auto">
+              No black-box generation. Watch every step, understand every
+              source, approve every plan.
+            </p>
+          </motion.div>
+
+          {/* Workflow steps */}
+          <motion.div
+            className="flex items-center justify-center flex-wrap gap-1"
+            variants={{
+              hidden: {},
+              visible: {
+                transition: {
+                  staggerChildren: 0.1,
+                },
+              },
+            }}
+          >
             {workflowSteps.map((step, i) => (
-              <div key={step.label} className="flex items-center">
+              <motion.div
+                key={step.label}
+                className="flex items-center"
+                variants={{
+                  hidden: {
+                    opacity: 0,
+                    x: 35,
+                    scale: 0.95,
+                  },
+                  visible: {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    transition: {
+                      duration: 0.5,
+                      ease: "easeOut",
+                    },
+                  },
+                }}
+                whileHover={{
+                  y: -3,
+                  transition: { duration: 0.2 },
+                }}
+              >
                 <div
                   className={`px-3.5 py-2 rounded-lg text-sm font-medium ${
                     i === 0
                       ? "bg-indigo-600 text-white"
                       : i === workflowSteps.length - 1
                         ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                        : "bg-[#EAECF0] text-slate-700 hover:bg-slate-200 transition-colors"
                   }`}
                 >
                   {step.label}
                 </div>
+
                 {i < workflowSteps.length - 1 && (
-                  <svg
-                    className="w-4 h-4 text-slate-300 mx-0.5"
+                  <motion.svg
+                    className="w-4 h-4 text-slate-300 mx-0.5 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    initial={{ opacity: 0, x: 10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      duration: 0.35,
+                      delay: 0.15 + i * 0.1,
+                    }}
                   >
                     <path
                       strokeLinecap="round"
@@ -800,14 +1144,24 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                       strokeWidth={2}
                       d="M9 5l7 7-7 7"
                     />
-                  </svg>
+                  </motion.svg>
                 )}
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Three key principles */}
-          <div className="mt-10 grid sm:grid-cols-3 gap-4">
+          <motion.div
+            className="mt-10 grid sm:grid-cols-3 gap-4"
+            variants={{
+              hidden: {},
+              visible: {
+                transition: {
+                  staggerChildren: 0.12,
+                },
+              },
+            }}
+          >
             {[
               {
                 num: "01",
@@ -825,31 +1179,62 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
                 desc: "Every claim linked to a source you can verify.",
               },
             ].map((p) => (
-              <div
+              <motion.div
                 key={p.num}
-                className="text-left bg-slate-50 border border-slate-200 rounded-xl p-5"
+                variants={{
+                  hidden: {
+                    opacity: 0,
+                    x: 45,
+                  },
+                  visible: {
+                    opacity: 1,
+                    x: 0,
+                    transition: {
+                      duration: 0.55,
+                      ease: "easeOut",
+                    },
+                  },
+                }}
+                whileHover={{
+                  y: -5,
+                  transition: { duration: 0.2 },
+                }}
+                whileTap={{
+                  scale: 0.98,
+                }}
+                className="text-left bg-[#F5F6F7] border border-slate-300 rounded-xl p-5 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all"
+                // className="text-left bg-[#EAECF0] border border-slate-300 rounded-xl p-5 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all"
               >
                 <p className="font-mono text-xs text-indigo-500 mb-2">
                   {p.num}
                 </p>
+
                 <p className="font-semibold text-slate-900 text-sm mb-1">
                   {p.title}
                 </p>
+
                 <p className="text-xs text-slate-500 leading-relaxed">
                   {p.desc}
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Social proof strip */}
-      <section className="py-8 px-4 bg-slate-50 border-y border-slate-200">
+      <motion.section
+        className="py-8 px-4 bg-slate-50 border-y border-slate-200"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
           <span className="font-medium text-slate-400 text-xs uppercase tracking-widest">
             Trusted source types
           </span>
+
           {[
             "Official Documentation",
             "Research Papers",
@@ -862,18 +1247,32 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
             </Badge>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* CTA */}
-      <section className="py-16 px-4 bg-[#060B16]">
-        <div className="max-w-2xl mx-auto text-center">
+      <motion.section
+        className="py-16 px-4 bg-[#060B16]"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.7 }}
+      >
+        <motion.div
+          className="max-w-2xl mx-auto text-center"
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
           <h2 className="text-2xl font-bold text-white mb-3">
             Ready to write your first technical blog?
           </h2>
+
           <p className="text-slate-400 mb-6 text-sm">
             Join engineers and technical writers using BlogForge to produce
             credible, research-backed content.
           </p>
+
           <Button
             size="lg"
             onClick={() => navigate({ section: "public", page: "register" })}
@@ -893,16 +1292,18 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
               />
             </svg>
           </Button>
+
           <p className="mt-3 text-xs text-slate-600">
             No credit card required · Export to PDF, DOCX, and Markdown
           </p>
-        </div>
-      </section>
+        </motion.div>
+      </motion.section>
 
       {/* Footer */}
       <footer className="bg-[#060B16] border-t border-slate-800 py-6 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <BlogForgeLogo dark size="sm" />
+
           <div className="flex items-center gap-4 text-xs text-slate-600">
             <a href="#" className="hover:text-slate-400 transition-colors">
               Privacy
@@ -914,6 +1315,7 @@ export default function Landing({ navigate }: { navigate: NavFn }) {
               Documentation
             </a>
           </div>
+
           <p className="text-xs text-slate-700">
             © 2026 BlogForge. AI-powered technical blog authoring.
           </p>

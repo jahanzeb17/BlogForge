@@ -1,246 +1,85 @@
 import { useEffect, useState } from "react";
 import type { NavFn } from "../../types";
-import { api, type RunDetail } from "../../services/api";
-import {
-  Tabs,
-  Badge,
-  Button,
-  Modal,
-  LoadingSpinner,
-  Alert,
-} from "../../components/ui";
+import { Alert, Badge, Button, LoadingSpinner, Modal, Tabs } from "../../components/ui";
 import MarkdownRenderer from "../../components/MarkdownRenderer";
-export default function BlogWorkspacePage({
-  navigate,
-  runId,
-}: {
-  navigate: NavFn;
-  runId: string;
-}) {
+import { api, type EvidenceItem, type PlanTask, type RunDetail } from "../../services/api";
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+export default function BlogWorkspacePage({ navigate, runId }: { navigate: NavFn; runId: string }) {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [tab, setTab] = useState("draft");
   const [revision, setRevision] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const [error, setError] = useState("");
+
   useEffect(() => {
-    api
-      .getRun(runId)
-      .then(setRun)
-      .catch((e) => setError(e.message));
+    api.getRun(runId).then(setRun).catch((e) => setError(e instanceof Error ? e.message : "Unable to load the blog workspace."));
   }, [runId]);
-  if (!run)
-    return (
-      <div className="h-full grid place-items-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  const md = run.final_markdown || "";
-  const plan = run.plan || {};
-  const evidence = run.evidence || [];
+
+  if (!run) return <div className="grid h-full place-items-center"><LoadingSpinner size="lg" /></div>;
+
+  const markdown = run.final_markdown || "";
+  const plan = run.plan ?? {};
+  const evidence = run.evidence ?? [];
+
   const approve = async (action: "approve" | "revise") => {
     setLoading(true);
+    setError("");
     try {
-      await api.resumeRun(runId, {
-        action,
-        instructions: action === "revise" ? instructions.trim() : undefined,
-      });
+      await api.resumeRun(runId, { action, instructions: action === "revise" ? instructions.trim() : undefined });
       setRevision(false);
+      setInstructions("");
       navigate({ section: "app", page: "workflow" });
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to continue the workflow.");
     } finally {
       setLoading(false);
     }
   };
+
+  const exportBlog = async (format: "pdf" | "docx") => {
+    setExporting(format);
+    setError("");
+    try {
+      await api.export(format, markdown, plan.blog_title || run.topic);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Unable to export the blog as ${format.toUpperCase()}.`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col">
-      {error && (
-        <div className="p-4">
-          <Alert variant="danger">{error}</Alert>
+    <div className="flex h-full flex-col">
+      {error && <div className="border-b border-slate-200 bg-slate-50 p-4"><div className="mx-auto max-w-5xl"><Alert variant="danger">{error}</Alert></div></div>}
+      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Blog workspace</p><h1 className="mt-1 truncate text-base font-semibold text-slate-950">{plan.blog_title || run.topic}</h1><p className="mt-1 text-xs text-slate-500">Review the draft, inspect the plan and evidence, then approve or request a revision.</p></div>
+          {run.interrupt_type === "final_draft_review" && <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => setRevision(true)} disabled={loading}>Request revision</Button><Button size="sm" loading={loading} onClick={() => approve("approve")}>Approve blog</Button></div>}
+          {run.status === "completed" && <div className="flex flex-wrap gap-2"><Button size="sm" loading={exporting === "pdf"} disabled={Boolean(exporting)} onClick={() => exportBlog("pdf")}>Export PDF</Button><Button variant="outline" size="sm" loading={exporting === "docx"} disabled={Boolean(exporting)} onClick={() => exportBlog("docx")}>Export DOCX</Button></div>}
         </div>
-      )}
-      <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold truncate">
-              {plan.blog_title || run.topic}
-            </h1>
-            <p className="font-mono text-xs text-slate-400 mt-1">{run.id}</p>
-          </div>
-          {run.interrupt_type === "final_draft_review" && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setRevision(true)}
-              >
-                Request Revision
-              </Button>
-              <Button
-                size="sm"
-                loading={loading}
-                onClick={() => approve("approve")}
-              >
-                Approve Blog
-              </Button>
-            </div>
-          )}
-          {run.status === "completed" && (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => api.export("pdf", md, plan.blog_title || "Blog")}
-              >
-                Export PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  api.export("docx", md, plan.blog_title || "Blog")
-                }
-              >
-                Export DOCX
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="bg-white border-b border-slate-200 px-6">
-        <Tabs
-          tabs={[
-            { id: "draft", label: "Draft" },
-            { id: "plan", label: "Plan" },
-            { id: "evidence", label: "Evidence", count: evidence.length },
-          ]}
-          active={tab}
-          onChange={setTab}
-        />
-      </div>
+      </header>
+
+      <div className="border-b border-slate-200 bg-white px-4 sm:px-6"><div className="mx-auto max-w-5xl overflow-x-auto"><Tabs tabs={[{ id: "draft", label: "Draft" }, { id: "plan", label: "Plan", count: plan.tasks?.length ?? 0 }, { id: "evidence", label: "Evidence", count: evidence.length }]} active={tab} onChange={setTab} /></div></div>
+
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
-          {tab === "draft" && (
-            <article className="bg-white border border-slate-200 rounded-xl p-6 sm:p-10">
-              {md ? (
-                <MarkdownRenderer markdown={md} runId={run.id} />
-              ) : (
-                <p className="text-sm text-slate-500">
-                  Draft is not available yet.
-                </p>
-              )}
-            </article>
-          )}
-          {tab === "plan" && (
-            <div className="space-y-4">
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
-                <h2 className="font-semibold text-sm">Blog Plan</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-                  {[
-                    ["Audience", plan.audience],
-                    ["Tone", plan.tone],
-                    ["Type", plan.blog_kind],
-                    ["Sections", plan.tasks?.length || 0],
-                  ].map(([a, b]) => (
-                    <div key={String(a)}>
-                      <p className="text-xs text-slate-400 uppercase">{a}</p>
-                      <p className="text-sm mt-1">{String(b || "—")}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {(plan.tasks || []).map((t: any, i: number) => (
-                <div
-                  key={i}
-                  className="bg-white border border-slate-200 rounded-xl p-5"
-                >
-                  <div className="flex gap-3">
-                    <Badge variant="purple">{i + 1}</Badge>
-                    <div>
-                      <h3 className="text-sm font-semibold">{t.title}</h3>
-                      <p className="text-xs text-slate-600 mt-2">{t.goal}</p>
-                      {t.bullets?.length && (
-                        <ul className="mt-2 text-xs text-slate-500 list-disc ml-4">
-                          {t.bullets.map((b: string, j: number) => (
-                            <li key={j}>{b}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {tab === "evidence" && (
-            <div className="space-y-3">
-              {evidence.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No evidence has been stored yet.
-                </p>
-              ) : (
-                evidence.map((e: any, i) => (
-                  <div
-                    key={i}
-                    className="bg-white border border-slate-200 rounded-xl p-5"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="cyan">Source</Badge>
-                      {e.published_at && (
-                        <span className="text-xs text-slate-400">
-                          {e.published_at}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-sm font-semibold">
-                      {e.title || e.url}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {e.source || "Technical source"}
-                    </p>
-                    {e.snippet && (
-                      <p className="text-xs text-slate-600 mt-3">{e.snippet}</p>
-                    )}
-                    <a
-                      className="text-xs font-mono text-indigo-600 break-all block mt-3"
-                      href={e.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {e.url}
-                    </a>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+          {tab === "draft" && <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-10"><div className="mb-7 border-b border-slate-100 pb-5"><Badge variant="success" dot>{run.status === "completed" ? "Approved blog" : "Draft for review"}</Badge><h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950">{plan.blog_title || run.topic}</h2></div>{markdown ? <MarkdownRenderer markdown={markdown} runId={run.id} /> : <p className="text-sm text-slate-500">Draft is not available yet.</p>}</article>}
+
+          {tab === "plan" && <div className="space-y-4"><div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">Blog plan</h2><div className="mt-4 grid gap-4 sm:grid-cols-4">{[["Audience", plan.audience], ["Tone", plan.tone], ["Type", plan.blog_kind], ["Sections", plan.tasks?.length ?? 0]].map(([label, value]) => <div key={String(label)}><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm text-slate-800">{String(value || "—")}</p></div>)}</div></div>{(plan.tasks ?? []).map((task: PlanTask, index) => <div key={`${task.title ?? "section"}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><Badge variant="purple">{index + 1}</Badge><div className="min-w-0 flex-1"><h3 className="text-sm font-semibold text-slate-900">{task.title || `Section ${index + 1}`}</h3>{task.goal && <p className="mt-2 text-sm leading-6 text-slate-600">{task.goal}</p>}{Array.isArray(task.bullets) && task.bullets.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-500">{task.bullets.map((bullet, bulletIndex) => <li key={bulletIndex}>{bullet}</li>)}</ul>}</div></div></div>)}</div>}
+
+          {tab === "evidence" && <div className="space-y-3">{evidence.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">No evidence has been stored yet.</div> : evidence.map((item: EvidenceItem, index) => <div key={`${item.url ?? item.title ?? "source"}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center gap-2"><Badge variant="cyan">Source</Badge>{item.published_at && <span className="text-xs text-slate-400">{formatDate(item.published_at)}</span>}</div><h3 className="mt-3 text-sm font-semibold text-slate-900">{item.title || item.url || "Technical source"}</h3><p className="mt-1 text-xs font-medium text-slate-500">{item.source || "Technical source"}</p>{item.snippet && <p className="mt-3 text-sm leading-6 text-slate-600">{item.snippet}</p>}{item.url && <a className="mt-3 inline-flex max-w-full break-all text-xs font-medium text-indigo-600 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500" href={item.url} target="_blank" rel="noreferrer">View source →</a>}</div>)}</div>}
         </div>
       </div>
-      <Modal
-        open={revision}
-        onClose={() => setRevision(false)}
-        title="Request a targeted revision"
-      >
-        <textarea
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          rows={5}
-          placeholder="Describe the specific section or change you want..."
-          className="w-full border border-slate-300 rounded-lg p-3 text-sm"
-        />
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={() => setRevision(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => approve("revise")}
-            loading={loading}
-            disabled={!instructions.trim()}
-          >
-            Submit Revision
-          </Button>
-        </div>
-      </Modal>
+
+      <Modal open={revision} onClose={() => !loading && setRevision(false)} title="Request a targeted revision" size="sm" footer={<div className="flex justify-end gap-2"><Button variant="outline" disabled={loading} onClick={() => setRevision(false)}>Cancel</Button><Button loading={loading} disabled={!instructions.trim()} onClick={() => approve("revise")}>Submit revision</Button></div>}><label htmlFor="revision-instructions" className="text-sm font-medium text-slate-700">Revision instructions</label><textarea id="revision-instructions" value={instructions} onChange={(e) => setInstructions(e.target.value.slice(0, 2000))} rows={6} maxLength={2000} placeholder="Describe the specific section or change you want..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" /><p className="mt-1 text-right text-xs text-slate-400">{instructions.length} / 2000</p></Modal>
     </div>
   );
 }
