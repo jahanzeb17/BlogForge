@@ -28,22 +28,47 @@ export default function MyBlogsPage({
       .catch((e) => setError(e.message || "Unable to load your blogs."))
       .finally(() => setLoading(false));
   }, []);
-  if (loading)
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await api.deleteRun(deleteId);
+
+      setRuns((currentRuns) =>
+        currentRuns.filter((run) => run.id !== deleteId),
+      );
+
+      setDeleteId(null);
+    } catch (e: any) {
+      setError(e.message || "Unable to delete the blog.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="h-full grid place-items-center">
-        <LoadingSpinner />
+        {" "}
+        <LoadingSpinner />{" "}
       </div>
     );
+  }
+
   return (
     <div className="h-full flex flex-col">
+      {" "}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
+        {" "}
         <h1 className="text-lg font-semibold">My Blogs</h1>
-
         <p className="text-sm text-slate-500">
           Your real BlogForge runs and generated content.
         </p>
       </div>
-
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="max-w-4xl mx-auto space-y-3">
           {error && (
@@ -75,12 +100,14 @@ export default function MyBlogsPage({
                 key={r.id}
                 onClick={() => {
                   setRunId(r.id);
+
                   navigate({
                     section: "app",
                     page:
                       r.interrupt_type === "research_plan_review"
                         ? "outline-review"
-                        : r.interrupt_type === "final_draft_review" || r.status === "completed"
+                        : r.interrupt_type === "final_draft_review" ||
+                            r.status === "completed"
                           ? "blog-workspace"
                           : "workflow",
                   });
@@ -92,10 +119,11 @@ export default function MyBlogsPage({
                     <h2 className="text-sm font-semibold text-slate-800">
                       {r.topic}
                     </h2>
+
                     <p className="font-mono text-xs text-slate-400 mt-2">
                       {r.id}
                     </p>
-                  </button>
+                  </div>
 
                   <div className="flex items-center gap-3 shrink-0">
                     <StatusBadge
@@ -108,7 +136,8 @@ export default function MyBlogsPage({
 
                     <Button
                       variant="secondary"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setDeleteId(r.id);
                       }}
                     >
@@ -121,7 +150,6 @@ export default function MyBlogsPage({
           )}
         </div>
       </div>
-
       {deleteId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
