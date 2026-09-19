@@ -45,7 +45,8 @@ from .config import DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"options": "-csearch_path=public"},
+    pool_pre_ping=True,
+    pool_recycle=300,
 )
 
 SessionLocal = sessionmaker(
