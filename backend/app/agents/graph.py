@@ -85,7 +85,7 @@ CHECKPOINT_DB_PATH = os.getenv(
 )
 
 
-from config import DATABASE_URL
+from app.config import DATABASE_URL
 from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg_pool import ConnectionPool
 

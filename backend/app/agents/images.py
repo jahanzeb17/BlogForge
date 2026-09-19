@@ -1,19 +1,3 @@
-"""
-Image generation for the blog pipeline.
-
-Everything about turning an ImageSpec into a real picture (and handling it
-when that fails) lives here, isolated from the rest of the agent/node logic
-in agents.py:
-  - calls Gemini's image model
-  - retries once on transient-looking failures (rate limits, 5xx, timeouts)
-  - summarizes raw provider errors into one clean log line (never leaked
-    into the blog itself)
-  - sanitizes any LLM-proposed filename before it's ever used as a path
-  - the `generate_and_place_images` graph node that ties it all together
-
-Keeping this in its own file means swapping providers, tuning retry
-behavior, or debugging an API error only ever touches this one module.
-"""
 from __future__ import annotations
 
 import logging
@@ -33,7 +17,7 @@ from .agents_schemas import ImagePlanOutput, coerce_plan
 from .states import State
 from .prompts import DECIDE_IMAGES_SYSTEM
 from .llms import get_llm
-from workflow import mark_workflow_step
+from app.workflow import mark_workflow_step
 
 
 logger = logging.getLogger(__name__)

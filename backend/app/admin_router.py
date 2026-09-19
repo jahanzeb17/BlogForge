@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import BlogRun, SecurityAuditLog, User
-from auth import get_current_admin, is_super_admin, SUPER_ADMIN_EMAIL
+from app.database import get_db
+from app.models import BlogRun, SecurityAuditLog, User
+from app.auth import get_current_admin, is_super_admin, SUPER_ADMIN_EMAIL
 
 
 router = APIRouter(

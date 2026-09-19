@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from database import SessionLocal
-from models import BlogRun
+from app.database import SessionLocal
+from app.models import BlogRun
 
 logger = logging.getLogger(__name__)
 

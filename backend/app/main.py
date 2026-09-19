@@ -3,10 +3,10 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import init_db
-import crud
-import auth_endpoints
-import admin_router
+from app.database import init_db
+import app.crud as crud
+import app.auth_endpoints as auth_endpoints
+import app.admin_router as admin_router
 
 
 app = FastAPI(

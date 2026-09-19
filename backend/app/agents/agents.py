@@ -558,7 +558,7 @@ from .prompts import (
 from .llms import get_llm
 from .guardrail import guardrail_check
 from .agents_schemas import GuardrailResult
-from workflow import mark_workflow_step
+from app.workflow import mark_workflow_step
 
 logger = logging.getLogger(__name__)
 

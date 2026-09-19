@@ -2,15 +2,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Project root is one level above backend/
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Project root is two levels above app/
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
 
 # Database
-# Changed fallback from SQLite to a standard local PostgreSQL URL
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:1782@localhost:5432/blogforge_db"
+    "DATABASE_URL"
 )
 
 # JWT
