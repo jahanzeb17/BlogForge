@@ -29,7 +29,7 @@ from google.genai import types
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from .agents_schemas import ImagePlanOutput
+from .agents_schemas import ImagePlanOutput, coerce_plan
 from .states import State
 from .prompts import DECIDE_IMAGES_SYSTEM
 from .llms import get_llm
@@ -240,6 +240,7 @@ def decide_images(state: State) -> dict:
     merged_md = state["merged_md"]
     plan = state["plan"]
     assert plan is not None
+    plan = coerce_plan(plan)
 
     image_plan = _invoke_structured(
         planner,
@@ -302,6 +303,7 @@ def generate_and_place_images(state: State, config: Optional[RunnableConfig] = N
 
     plan = state["plan"]
     assert plan is not None
+    plan = coerce_plan(plan)
 
     md = state.get("md_with_placeholders") or state["merged_md"]
     image_specs = state.get("image_specs", []) or []

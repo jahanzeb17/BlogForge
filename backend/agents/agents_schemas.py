@@ -5,9 +5,15 @@ from typing import List, Literal, Optional
 class Task(BaseModel):
     id: int
     title: str
-    goal: str = Field(..., description="One sentence describing what the reader should do/understand.")
+    goal: str = Field(
+        ...,
+        description="One sentence describing what the reader should do/understand.",
+    )
     bullets: List[str] = Field(..., min_length=3, max_length=6)
-    target_words: int = Field(..., description="Target words (120–550).")
+    target_words: int = Field(
+        ...,
+        description="Target words (120–550).",
+    )
 
     tags: List[str] = Field(default_factory=list)
     requires_research: bool = False
@@ -19,7 +25,13 @@ class Plan(BaseModel):
     blog_title: str
     audience: str
     tone: str
-    blog_kind: Literal["explainer", "tutorial", "news_roundup", "comparison", "system_design"] = "explainer"
+    blog_kind: Literal[
+        "explainer",
+        "tutorial",
+        "news_roundup",
+        "comparison",
+        "system_design",
+    ] = "explainer"
     constraints: List[str] = Field(default_factory=list)
     tasks: List[Task]
 
@@ -30,9 +42,8 @@ class EvidenceItem(BaseModel):
     published_at: Optional[str] = None  # ISO "YYYY-MM-DD" preferred
     snippet: Optional[str] = None
     source: Optional[str] = None
-    query: Optional[str] = None  # <--- NEW: Tracks which subtopic gathered this evidence
+    query: Optional[str] = None  # Tracks which subtopic gathered this evidence
 
-    
 
 class RouterDecision(BaseModel):
     needs_research: bool
@@ -58,19 +69,38 @@ class EvidencePack(BaseModel):
 
 
 class ImageSpec(BaseModel):
-    section_title: str = Field(..., description="Exact title of the markdown section (e.g., 'Self-Attention Mechanics') where this image belongs.")
-    filename: str = Field(..., description="Save under images/, e.g. self_attention_flow.png")
+    section_title: str = Field(
+        ...,
+        description=(
+            "Exact title of the markdown section "
+            "(e.g., 'Self-Attention Mechanics') where this image belongs."
+        ),
+    )
+    filename: str = Field(
+        ...,
+        description="Save under images/, e.g. self_attention_flow.png",
+    )
     alt: str
     caption: str
-    prompt: str = Field(..., description="Prompt to send to the image model.")
-    size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024"
-    quality: Literal["low", "medium", "high"] = "medium"
+    prompt: str = Field(
+        ...,
+        description="Prompt to send to the image model.",
+    )
+    size: Literal[
+        "1024x1024",
+        "1024x1536",
+        "1536x1024",
+    ] = "1024x1024"
+    quality: Literal[
+        "low",
+        "medium",
+        "high",
+    ] = "medium"
 
 
 # class GlobalImagePlan(BaseModel):
 #     md_with_placeholders: str
 #     images: List[ImageSpec] = Field(default_factory=list)
-
 
 
 # class ImagePlanOutput(BaseModel):
@@ -80,8 +110,11 @@ class ImageSpec(BaseModel):
 class ImagePlanOutput(BaseModel):
     images: List[ImageSpec] = Field(
         default_factory=list,
-        description="Strictly AT MOST 1 key illustrative image for the entire blog post. Do not include multiple images.",
-        max_length=1  # <--- This is the hard programmatic enforcement
+        description=(
+            "Strictly AT MOST 1 key illustrative image "
+            "for the entire blog post. Do not include multiple images."
+        ),
+        max_length=1,
     )
 
 
@@ -95,28 +128,53 @@ def coerce_plan(value) -> Optional["Plan"]:
     """
     if value is None:
         return None
+
     if isinstance(value, Plan):
         return value
+
     if isinstance(value, dict):
         return Plan(**value)
+
     raise TypeError(f"Unexpected type for plan: {type(value)!r}")
 
 
-
-
-
 class GuardrailResult(BaseModel):
-    action: Literal["allow", "reject"]
-    reason: str = Field(description="If rejected, a brief 1-sentence reason why. If allowed, just output 'safe'.")
+    """
+    Structured result returned by the BlogForge safety guardrail.
 
+    The category is recorded separately from the human-readable reason so
+    security audit records can be filtered/grouped later without parsing
+    guardrail messages.
+    """
+
+    action: Literal["allow", "reject"]
+
+    category: str = Field(
+        default="safe",
+        description=(
+            "Short machine-readable category for the guardrail decision. "
+            "Use 'safe' when allowed. When rejected, use a concise category "
+            "such as 'violence', 'weapon', 'malicious_cyber', 'illegal_activity', "
+            "'dangerous_instruction', or another accurate category."
+        ),
+    )
+
+    reason: str = Field(
+        description=(
+            "If rejected, a brief 1-sentence reason why. "
+            "If allowed, output 'safe'."
+        ),
+    )
 
 
 # ==========================================
 # NEW: Outline Schema for the Outline Generator
 # ==========================================
+
+
 class OutlineResult(BaseModel):
     subtopics: List[str] = Field(
         description="A list of 1 to 4 subtopics based on the main topic.",
         min_length=1,
-        max_length=4
+        max_length=4,
     )

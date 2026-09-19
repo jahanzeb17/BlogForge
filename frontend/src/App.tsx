@@ -81,7 +81,10 @@ export default function App() {
       .finally(() => setBooting(false));
   }, []);
 
-  const navigate = (newRoute: Route) => setRoute(newRoute);
+  const navigate = (newRoute: Route) => {
+    setRoute(newRoute);
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  };
 
   const handleAuth = async (auth: { access_token: string }) => {
     saveToken(auth.access_token);
@@ -93,6 +96,7 @@ export default function App() {
           ? { section: "admin", page: "dashboard" }
           : { section: "app", page: "new-blog" },
       );
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     } catch (error) {
       clearToken();
       throw error;
@@ -106,6 +110,7 @@ export default function App() {
       setUser(null);
       setRunIdState(null);
       setRoute({ section: "public", page: "login" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     };
     window.addEventListener("blogforge:unauthorized", onUnauthorized);
     return () =>
@@ -117,12 +122,26 @@ export default function App() {
     setUser(null);
     setRunId(null);
     setRoute({ section: "public", page: "landing" });
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   };
 
   const startRun = (id: string) => {
     setRunId(id);
     setRoute({ section: "app", page: "workflow" });
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      window.location.reload();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
 
   if (booting)
     return (

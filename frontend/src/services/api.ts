@@ -30,6 +30,7 @@ async function request<T>(
   });
 
   const contentType = response.headers.get("content-type") || "";
+
   const data = contentType.includes("application/json")
     ? await response.json()
     : await response.blob();
@@ -161,11 +162,18 @@ export interface AdminUser {
 }
 
 export interface AuditLog {
-  run_id: string;
+  // Updated to match the new SecurityAuditLog backend response.
+  id: number;
+  run_id: string | null;
   user_id: number;
   username: string;
-  topic_attempted: string;
+  email: string;
+  input_type: "topic" | "subtopic" | "revision";
+  topic: string;
+  subtopic: string | null;
+  guardrail_category: string;
   guardrail_message: string;
+  action: string;
   timestamp: string | null;
 }
 
@@ -224,6 +232,27 @@ export const api = {
 
   getRun: (id: string) => request<RunDetail>(`/api/runs/${id}`),
 
+  // resumeRun: (
+  //   id: string,
+  //   payload: {
+  //     action: string;
+  //     queries?: string[];
+  //     instructions?: string;
+  //   },
+  // ) =>
+  //   request<{ run_id: string; status: RunStatus }>(
+  //     `/api/runs/${id}/resume`,
+  //     {
+  //       method: "POST",
+  //       body: JSON.stringify(payload),
+  //     },
+  //   ),
+
+  // deleteRun: (id: string) =>
+  //   request<{ detail: string }>(`/api/runs/${id}`, {
+  //     method: "DELETE",
+  //   }),
+
   resumeRun: (
     id: string,
     payload: {
@@ -232,17 +261,34 @@ export const api = {
       instructions?: string;
     },
   ) =>
-    request<{ run_id: string; status: RunStatus }>(`/api/runs/${id}/resume`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+    request<{ run_id: string; status: RunStatus }>(
+      `/api/runs/${id}/resume`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  retryRun: (id: string) =>
+    request<{ run_id: string; status: RunStatus }>(
+      `/api/runs/${id}/retry`,
+      {
+        method: "POST",
+      },
+    ),
 
   deleteRun: (id: string) =>
     request<{ detail: string }>(`/api/runs/${id}`, {
       method: "DELETE",
     }),
 
-  export: async (format: "pdf" | "docx", markdown: string, title: string) => {
+///////////////////////////
+
+  export: async (
+    format: "pdf" | "docx",
+    markdown: string,
+    title: string,
+  ) => {
     const blob = await request<Blob>(`/api/export/${format}`, {
       method: "POST",
       body: JSON.stringify({ markdown, title }),
@@ -250,18 +296,21 @@ export const api = {
 
     const safeTitle =
       (title || "BlogForge-export")
-        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/[\/:*?"<>|]+/g, "-")
         .replace(/\s+/g, " ")
         .trim()
         .replace(/^\.+|\.+$/g, "") || "BlogForge-export";
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `${safeTitle}.${format}`;
+
     document.body.appendChild(a);
     a.click();
     a.remove();
+
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
 
@@ -284,6 +333,7 @@ export const api = {
         body: JSON.stringify({ is_admin: isAdmin }),
       }),
 
+    // Uses the new structured security audit log response from the backend.
     auditLogs: () => request<AuditLog[]>("/api/admin/audit-logs"),
   },
 };

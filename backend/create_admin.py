@@ -1,18 +1,3 @@
-"""
-Create or promote a BlogForge administrator.
-
-Run from the project root:
-
-    python -m backend.create_admin
-
-Required environment variables:
-
-    ADMIN_USERNAME
-    ADMIN_PASSWORD
-
-This is intentionally not exposed as an HTTP endpoint.
-"""
-
 from __future__ import annotations
 
 import os

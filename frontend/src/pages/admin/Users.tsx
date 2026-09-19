@@ -23,6 +23,7 @@ export default function Users() {
   const [error, setError] = useState("");
   const [pendingUser, setPendingUser] = useState<AdminUser | null>(null);
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -85,6 +86,29 @@ export default function Users() {
     }
   };
 
+  const handleDeleteUser = async (user: AdminUser) => {
+    const confirmed = window.confirm(
+      `Delete ${user.username} (${user.email}) permanently? This action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingUserId(user.user_id);
+    setError("");
+
+    try {
+      await api.admin.deleteUser(user.user_id);
+
+      setUsers((current) =>
+        current.filter((item) => item.user_id !== user.user_id),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete the user.");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid min-h-64 place-items-center p-8">
@@ -113,8 +137,6 @@ export default function Users() {
 
           {error && (
             <div className="mt-5">
-              {/* Alert does not accept className in the current
-                  shared UI component, so spacing is handled outside. */}
               <Alert variant="danger">{error}</Alert>
             </div>
           )}
@@ -126,8 +148,8 @@ export default function Users() {
           ) : (
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="overflow-x-auto">
-                <table className="min-w-[1000px] w-full text-sm">
-                  <thead className="bg-slate-50">
+                <table className="min-w-[1200px] w-full text-sm">
+                  <thead className="bg-slate-800">
                     <tr>
                       {[
                         "Username",
@@ -136,11 +158,12 @@ export default function Users() {
                         "Role",
                         "Blogs",
                         "Joined",
-                        "Action",
+                        "Admin Access",
+                        "Delete",
                       ].map((heading) => (
                         <th
                           key={heading}
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100"
                         >
                           {heading}
                         </th>
@@ -151,43 +174,40 @@ export default function Users() {
                   <tbody>
                     {users.map((user) => {
                       const updating = updatingUserId === user.user_id;
+                      const deleting = deletingUserId === user.user_id;
 
                       return (
                         <tr
                           key={user.user_id}
-                          className="border-t border-slate-100 align-middle transition-colors hover:bg-slate-50/70"
+                          className="border-t border-slate-200 bg-slate-50 align-middle transition-colors hover:bg-slate-100"
                         >
                           <td className="px-4 py-4">
-                            <span className="font-medium text-slate-800">
+                            <span className="font-medium text-slate-900">
                               {user.username}
                             </span>
                           </td>
 
                           <td className="max-w-xs px-4 py-4">
-                            <span className="break-all text-slate-600">
+                            <span className="break-all text-slate-700">
                               {user.email}
                             </span>
                           </td>
 
-                          <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-400">
+                          <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-600">
                             {user.user_id}
                           </td>
 
                           <td className="px-4 py-4">
-                            {/* Changed from the unsupported "purple"
-                                variant to the supported "info" variant.
-                                Indigo keeps the admin role visually
-                                connected to the Admin Console theme. */}
                             <Badge variant={user.is_admin ? "info" : "default"}>
                               {user.is_admin ? "Admin" : "User"}
                             </Badge>
                           </td>
 
-                          <td className="px-4 py-4 text-slate-700">
+                          <td className="px-4 py-4 font-medium text-slate-800">
                             {user.total_blogs_created}
                           </td>
 
-                          <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
+                          <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-600">
                             {formatDate(user.joined_at)}
                           </td>
 
@@ -195,7 +215,7 @@ export default function Users() {
                             <Button
                               size="sm"
                               variant={user.is_admin ? "danger" : "outline"}
-                              disabled={updating}
+                              disabled={updating || deleting}
                               onClick={() => setPendingUser(user)}
                             >
                               {updating
@@ -205,6 +225,17 @@ export default function Users() {
                                   : "Make admin"}
                             </Button>
                           </td>
+
+                          <td className="px-4 py-4">
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              disabled={updating || deleting}
+                              onClick={() => handleDeleteUser(user)}
+                            >
+                              {deleting ? "Deleting..." : "Delete"}
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -212,9 +243,7 @@ export default function Users() {
                 </table>
               </div>
 
-              {/* Mobile hint for the horizontally scrollable
-                  admin table. */}
-              <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-[11px] text-slate-400 sm:hidden">
+              <div className="border-t border-slate-200 bg-slate-100 px-4 py-2 text-center text-[11px] text-slate-500 sm:hidden">
                 Swipe horizontally to view all columns.
               </div>
             </div>

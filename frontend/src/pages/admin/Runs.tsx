@@ -28,6 +28,7 @@ function uiStatus(
 export default function Runs() {
   const [runs, setRuns] = useState<AdminRun[]>([]);
   const [filter, setFilter] = useState<RunStatus | "">("");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -60,6 +61,48 @@ export default function Runs() {
     };
   }, [filter]);
 
+  useEffect(() => {
+    if (!filterOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      if (!target.closest("[data-status-filter]")) {
+        setFilterOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFilterOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [filterOpen]);
+
+  const filterOptions: Array<{
+    value: RunStatus | "";
+    label: string;
+  }> = [
+    { value: "", label: "All statuses" },
+    { value: "completed", label: "Completed" },
+    { value: "running", label: "Running" },
+    { value: "interrupted", label: "Waiting" },
+    { value: "failed", label: "Failed" },
+    { value: "pending", label: "Pending" },
+  ];
+
+  const selectedFilterLabel =
+    filterOptions.find((option) => option.value === filter)?.label ??
+    "All statuses";
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mx-auto max-w-7xl">
@@ -78,21 +121,67 @@ export default function Runs() {
             </p>
           </div>
 
-          <label className="text-xs font-medium text-slate-500">
+          <label
+            className="text-xs font-medium text-slate-500"
+            data-status-filter
+          >
             Filter status
-            <select
-              aria-label="Filter runs by status"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as RunStatus | "")}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:w-48"
-            >
-              <option value="">All statuses</option>
-              <option value="completed">Completed</option>
-              <option value="running">Running</option>
-              <option value="interrupted">Waiting</option>
-              <option value="failed">Failed</option>
-              <option value="pending">Pending</option>
-            </select>
+            {/* Custom dropdown keeps the options inside the viewport on phones. */}
+            <div className="relative mt-1 w-full sm:w-48">
+              <button
+                type="button"
+                aria-label="Filter runs by status"
+                aria-haspopup="listbox"
+                aria-expanded={filterOpen}
+                onClick={() => setFilterOpen((open) => !open)}
+                className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 outline-none transition hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <span>{selectedFilterLabel}</span>
+
+                <svg
+                  className={`ml-2 h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                    filterOpen ? "rotate-180" : ""
+                  }`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {filterOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Filter runs by status"
+                  className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border border-slate-300 bg-white shadow-lg"
+                >
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option.value || "all"}
+                      type="button"
+                      role="option"
+                      aria-selected={filter === option.value}
+                      onClick={() => {
+                        setFilter(option.value);
+                        setFilterOpen(false);
+                      }}
+                      className={`block w-full px-3 py-2 text-left text-sm transition ${
+                        filter === option.value
+                          ? "bg-indigo-50 font-medium text-indigo-700"
+                          : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </label>
         </header>
 
@@ -117,29 +206,30 @@ export default function Runs() {
           <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-[900px] w-full text-sm">
-                <thead className="bg-slate-50">
+                {/* Dark table header for stronger separation and readability. */}
+                <thead className="bg-slate-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       Run
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       User
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       Topic
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       Status
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       Created
                     </th>
 
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-100">
                       Error
                     </th>
                   </tr>
@@ -149,11 +239,11 @@ export default function Runs() {
                   {runs.map((run) => (
                     <tr
                       key={run.run_id}
-                      className="border-t border-slate-100 align-top transition-colors hover:bg-slate-50/70"
+                      className="border-t border-slate-200 bg-slate-50 align-top transition-colors hover:bg-slate-100"
                     >
                       <td className="whitespace-nowrap px-4 py-4">
                         <span
-                          className="font-mono text-xs text-slate-400"
+                          className="font-mono text-xs text-slate-500"
                           title={run.run_id}
                         >
                           {run.run_id.slice(0, 12)}…
@@ -176,7 +266,7 @@ export default function Runs() {
                         <StatusBadge status={uiStatus(run.status)} />
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
+                      <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-600">
                         {formatDate(run.created_at)}
                       </td>
 
@@ -185,7 +275,7 @@ export default function Runs() {
                           className={`break-words text-xs leading-5 ${
                             run.error_message
                               ? "text-red-600"
-                              : "text-slate-400"
+                              : "text-slate-500"
                           }`}
                         >
                           {run.error_message || "—"}
@@ -199,7 +289,7 @@ export default function Runs() {
 
             {/* Keeps the table usable on mobile by clearly indicating
                 that additional columns can be horizontally scrolled. */}
-            <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-[11px] text-slate-400 sm:hidden">
+            <div className="border-t border-slate-200 bg-slate-100 px-4 py-2 text-center text-[11px] text-slate-500 sm:hidden">
               Swipe horizontally to view all columns.
             </div>
           </div>

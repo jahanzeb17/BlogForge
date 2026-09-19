@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import BlogRun, User
-from auth import get_current_admin
+from models import BlogRun, SecurityAuditLog, User
+from auth import get_current_admin, is_super_admin, SUPER_ADMIN_EMAIL
 
 
 router = APIRouter(
@@ -143,37 +143,41 @@ def get_security_audit_logs(
     admin: User = Depends(get_current_admin),
 ):
     """
-    Return blog runs that contain a recorded guardrail event.
+    Return persisted security guardrail events.
+
+    Each record explicitly identifies whether the guarded input was the
+    original topic, a subtopic, or a revision. Topic and subtopic are returned
+    as separate fields so the Admin Security page never has to infer their
+    meaning from a combined message.
     """
 
-    flagged_runs = (
-        db.query(BlogRun)
-        .filter(
-            BlogRun.guardrail_msg.isnot(None)
-        )
-        .order_by(BlogRun.created_at.desc())
+    events = (
+        db.query(SecurityAuditLog)
+        .order_by(SecurityAuditLog.created_at.desc())
         .limit(limit)
         .all()
     )
 
     return [
         {
-            "run_id": run.id,
-            "user_id": run.user_id,
-            "username": (
-                run.user.username
-                if run.user
-                else "Unknown"
-            ),
-            "topic_attempted": run.topic,
-            "guardrail_message": run.guardrail_msg,
+            "id": event.id,
+            "run_id": event.run_id,
+            "user_id": event.user_id,
+            "username": event.username,
+            "email": event.email,
+            "input_type": event.input_type,
+            "topic": event.topic,
+            "subtopic": event.subtopic,
+            "guardrail_category": event.guardrail_category,
+            "guardrail_message": event.guardrail_message,
+            "action": event.action,
             "timestamp": (
-                run.created_at.isoformat()
-                if run.created_at
+                event.created_at.isoformat()
+                if event.created_at
                 else None
             ),
         }
-        for run in flagged_runs
+        for event in events
     ]
 
 
@@ -196,6 +200,7 @@ def get_user_directory(
             "username": user.username,
             "email": user.email,
             "is_admin": user.is_admin,
+            "is_super_admin": is_super_admin(user),
             "total_blogs_created": len(user.runs),
             "joined_at": (
                 user.created_at.isoformat()
@@ -238,6 +243,7 @@ def get_user_details(
         "username": user.username,
         "email": user.email,
         "is_admin": user.is_admin,
+        "is_super_admin": is_super_admin(user),
         "joined_at": (
             user.created_at.isoformat()
             if user.created_at
@@ -275,6 +281,8 @@ def update_user_role(
     """
     Promote a user to administrator or demote an administrator
     to a normal user. Admin access only.
+
+    The protected Super Admin can never be demoted.
     """
 
     user = (
@@ -287,6 +295,16 @@ def update_user_role(
         raise HTTPException(
             status_code=404,
             detail="User not found",
+        )
+
+    # The protected Super Admin can never be demoted.
+    if is_super_admin(user) and not req.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"The protected Super Admin account "
+                f"({SUPER_ADMIN_EMAIL}) cannot be demoted."
+            ),
         )
 
     # Do not allow an administrator to remove their own
@@ -320,4 +338,62 @@ def update_user_role(
         "user_id": user.id,
         "username": user.username,
         "is_admin": user.is_admin,
+        "is_super_admin": is_super_admin(user),
+    }
+
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """
+    Permanently delete a user and their associated BlogForge data.
+
+    The protected Super Admin account can never be deleted.
+    """
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    # The protected Super Admin can never be deleted.
+    if is_super_admin(user):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"The protected Super Admin account "
+                f"({SUPER_ADMIN_EMAIL}) cannot be deleted."
+            ),
+        )
+
+    # Keep the existing self-protection behavior. An administrator must not
+    # accidentally remove the account they are currently using.
+    if user.id == admin.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete your own administrator account.",
+        )
+
+    deleted_user_id = user.id
+    deleted_username = user.username
+    deleted_email = user.email
+
+    db.delete(user)
+    db.commit()
+
+    return {
+        "detail": "User deleted successfully",
+        "user_id": deleted_user_id,
+        "username": deleted_username,
+        "email": deleted_email,
     }
