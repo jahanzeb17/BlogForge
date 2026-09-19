@@ -232,27 +232,6 @@ export const api = {
 
   getRun: (id: string) => request<RunDetail>(`/api/runs/${id}`),
 
-  // resumeRun: (
-  //   id: string,
-  //   payload: {
-  //     action: string;
-  //     queries?: string[];
-  //     instructions?: string;
-  //   },
-  // ) =>
-  //   request<{ run_id: string; status: RunStatus }>(
-  //     `/api/runs/${id}/resume`,
-  //     {
-  //       method: "POST",
-  //       body: JSON.stringify(payload),
-  //     },
-  //   ),
-
-  // deleteRun: (id: string) =>
-  //   request<{ detail: string }>(`/api/runs/${id}`, {
-  //     method: "DELETE",
-  //   }),
-
   resumeRun: (
     id: string,
     payload: {
@@ -282,7 +261,7 @@ export const api = {
       method: "DELETE",
     }),
 
-///////////////////////////
+  ///////////////////////////
 
   export: async (
     format: "pdf" | "docx",
@@ -318,24 +297,35 @@ export const api = {
     `${API_URL}/api/runs/${runId}/images/${encodeURIComponent(filename)}`,
 
   admin: {
-    metrics: () => request<AdminMetrics>("/api/admin/metrics"),
+  metrics: () => request<AdminMetrics>("/api/admin/metrics"),
 
-    runs: (status?: RunStatus) =>
-      request<AdminRun[]>(
-        `/api/admin/runs${status ? `?status=${encodeURIComponent(status)}` : ""}`,
-      ),
+  runs: (status?: RunStatus) =>
+    request<AdminRun[]>(
+      `/api/admin/runs${
+        status ? `?status=${encodeURIComponent(status)}` : ""
+      }`,
+    ),
 
-    users: () => request<AdminUser[]>("/api/admin/users"),
+  users: () => request<AdminUser[]>("/api/admin/users"),
 
-    updateUserRole: (userId: number, isAdmin: boolean) =>
-      request<UpdatedUserRole>(`/api/admin/users/${userId}/role`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_admin: isAdmin }),
-      }),
+  updateUserRole: (userId: number, isAdmin: boolean) =>
+    request<UpdatedUserRole>(`/api/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_admin: isAdmin }),
+    }),
 
-    // Uses the new structured security audit log response from the backend.
-    auditLogs: () => request<AuditLog[]>("/api/admin/audit-logs"),
-  },
+  deleteUser: (userId: number) =>
+    request<{
+      detail: string;
+      user_id: number;
+      username: string;
+      email: string;
+    }>(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    }),
+
+  auditLogs: () => request<AuditLog[]>("/api/admin/audit-logs"),
+},
 };
 
 export function saveToken(token: string) {
