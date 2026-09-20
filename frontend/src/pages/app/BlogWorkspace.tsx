@@ -189,10 +189,6 @@ export default function BlogWorkspacePage({
                     ? "Approved blog"
                     : "Draft for review"}
                 </Badge>
-
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950">
-                  {plan.blog_title || run.topic}
-                </h2>
               </div>
 
               {markdown ? (

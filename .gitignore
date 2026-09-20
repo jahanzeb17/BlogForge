@@ -27,3 +27,6 @@ dist-ssr/
 
 backend.zip
 frontend.zip
+
+blogforge_local_backup.dump
+blogforge_data.sql
