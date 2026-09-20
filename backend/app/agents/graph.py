@@ -114,7 +114,7 @@ try:
     pool = ConnectionPool(
         conninfo=DATABASE_URL,
         kwargs=connection_kwargs,
-        max_size=10,
+        max_size=20,
     )
 
     if _serde:

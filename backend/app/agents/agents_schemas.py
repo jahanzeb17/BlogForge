@@ -139,13 +139,6 @@ def coerce_plan(value) -> Optional["Plan"]:
 
 
 class GuardrailResult(BaseModel):
-    """
-    Structured result returned by the BlogForge safety guardrail.
-
-    The category is recorded separately from the human-readable reason so
-    security audit records can be filtered/grouped later without parsing
-    guardrail messages.
-    """
 
     action: Literal["allow", "reject"]
 

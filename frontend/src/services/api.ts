@@ -1,8 +1,14 @@
+// const API_URL = (
+//   import.meta.env.VITE_API_URL || "https://blogforge-3e2063c1.fastapicloud.dev"
+// ).replace(/\/$/, "");
+
+
 const API_URL = (
-  import.meta.env.VITE_API_URL || "https://blogforge-3e2063c1.fastapicloud.dev"
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
 export type ApiError = Error & { status?: number };
+
 
 function getToken() {
   return localStorage.getItem("blogforge_token");
