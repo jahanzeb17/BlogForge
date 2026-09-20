@@ -138,25 +138,27 @@ export default function OutlineReviewPage({
             {queries.map((query, index) => (
               <div
                 key={index}
-                className="flex items-center gap-3 rounded-xl border border-slate-300 bg-white p-3 shadow-sm sm:p-4"
+                className="rounded-xl border border-slate-300 bg-white p-3 shadow-sm sm:flex sm:items-center sm:gap-3 sm:p-4"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100">
-                  {index + 1}
-                </span>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100">
+                    {index + 1}
+                  </span>
 
-                <input
-                  aria-label={`Research subtopic ${index + 1}`}
-                  value={query}
-                  onChange={(e) =>
-                    setQueries((current) =>
-                      current.map((item, i) =>
-                        i === index ? e.target.value : item,
-                      ),
-                    )
-                  }
-                  placeholder="Enter research subtopic..."
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
-                />
+                  <input
+                    aria-label={`Research subtopic ${index + 1}`}
+                    value={query}
+                    onChange={(e) =>
+                      setQueries((current) =>
+                        current.map((item, i) =>
+                          i === index ? e.target.value : item,
+                        ),
+                      )
+                    }
+                    placeholder="Enter research subtopic..."
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
+                  />
+                </div>
 
                 <button
                   type="button"
@@ -166,7 +168,7 @@ export default function OutlineReviewPage({
                       current.filter((_, i) => i !== index),
                     )
                   }
-                  className="shrink-0 rounded-md px-2 py-2 text-xs font-semibold text-slate-500 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                  className="mt-2 rounded-md px-2 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-red-600 sm:mt-0 sm:shrink-0"
                 >
                   Remove
                 </button>
