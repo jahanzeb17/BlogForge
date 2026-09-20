@@ -237,6 +237,7 @@
 //   );
 // }
 
+
 import { useEffect, useState } from "react";
 import type { NavFn } from "../../types";
 import { Alert, Button, LoadingSpinner } from "../../components/ui";
@@ -373,7 +374,7 @@ export default function OutlineReviewPage({
 
               return (
                 <div
-                  key={`${index}-${query}`}
+                  key={index}
                   className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm sm:px-4"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100">
