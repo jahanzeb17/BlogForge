@@ -205,13 +205,9 @@ export default function BlogWorkspacePage({
             {tab === "plan" && (
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
-<<<<<<< Updated upstream
-                  <h2 className="text-sm font-bold text-slate-950">Blog plan</h2>
-=======
                   <h2 className="text-sm font-bold text-slate-950">
                     Blog plan
                   </h2>
->>>>>>> Stashed changes
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-4">
                     {[
