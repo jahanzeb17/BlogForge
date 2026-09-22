@@ -1,32 +1,3 @@
-"""
-Convert the tool's generated blog Markdown into downloadable .docx / .pdf
-bytes, without needing pandoc/LibreOffice/pdflatex installed on the host.
-
-DOCX:
-- python-docx
-- Small hand-rolled Markdown block/inline parser
-- headings
-- bold / italic / code / links
-- bullet lists
-- code blocks
-- images
-
-PDF:
-- fpdf2 directly
-- Uses the same Markdown block parser as DOCX
-- Does not rely on fpdf2.write_html()
-- Supports headings, paragraphs, bold/italic/code, links,
-  bullet lists, quotes, captions, code blocks, and images
-- Handles page breaks and long content explicitly
-- Smart quotes/dashes are normalized for fpdf2's built-in fonts
-- Characters outside Latin-1 are safely replaced rather than
-  crashing the export
-
-All third-party imports are lazy (inside the functions), so importing
-this module never fails even if a package isn't installed yet.
-"""
-
-
 from __future__ import annotations
 
 import re

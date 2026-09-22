@@ -1002,7 +1002,7 @@ def export_docx(
     req: ExportRequest,
     user: User = Depends(get_current_user),
 ):
-    from agents.exporters import markdown_to_docx_bytes
+    from app.agents.exporters import markdown_to_docx_bytes
 
     try:
         docx_bytes = markdown_to_docx_bytes(req.markdown)
@@ -1030,7 +1030,7 @@ def export_pdf(
     req: ExportRequest,
     user: User = Depends(get_current_user),
 ):
-    from agents.exporters import markdown_to_pdf_bytes
+    from app.agents.exporters import markdown_to_pdf_bytes
 
     try:
         pdf_bytes = markdown_to_pdf_bytes(req.markdown)
