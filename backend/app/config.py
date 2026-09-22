@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
 # Database
 DATABASE_URL = os.getenv(
     "DATABASE_URL"
-)
+    )
 
 # JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "blogforge-dev-secret-change-in-production-xK9pL2mN7qR4")

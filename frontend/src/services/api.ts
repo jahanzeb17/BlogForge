@@ -1,6 +1,12 @@
+// const API_URL = (
+//   import.meta.env.VITE_API_URL ||
+//   "https://blogforge-3e2063c1.fastapicloud.dev"
+// ).replace(/\/+$/, "");
+
+
 const API_URL = (
   import.meta.env.VITE_API_URL ||
-  "https://blogforge-3e2063c1.fastapicloud.dev"
+  "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
 
 export type ApiError = Error & { status?: number };
