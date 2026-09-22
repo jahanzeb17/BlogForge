@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 
 from io import BytesIO
@@ -20,7 +21,15 @@ _IMAGE_RE = re.compile(
 )
 
 _BULLET_RE = re.compile(
-    r"^[-*]\s+(.*)$"
+    r"^[-*+]\s+(.*)$"
+)
+
+_ORDERED_RE = re.compile(
+    r"^\d+[.)]\s+(.*)$"
+)
+
+_HORIZONTAL_RULE_RE = re.compile(
+    r"^(?:-{3,}|\*{3,}|_{3,})$"
 )
 
 
@@ -71,6 +80,20 @@ def _parse_markdown_blocks(
         # -------------------------
 
         if not stripped:
+            i += 1
+            continue
+
+        # -------------------------
+        # Horizontal rule
+        # -------------------------
+
+        if _HORIZONTAL_RULE_RE.match(stripped):
+            blocks.append(
+                {
+                    "type": "rule",
+                }
+            )
+
             i += 1
             continue
 
@@ -128,6 +151,35 @@ def _parse_markdown_blocks(
             continue
 
         # -------------------------
+        # Ordered list
+        # -------------------------
+
+        m = _ORDERED_RE.match(stripped)
+
+        if m:
+            number_match = re.match(
+                r"^(\d+)",
+                stripped,
+            )
+
+            number = (
+                number_match.group(1)
+                if number_match
+                else "1"
+            )
+
+            blocks.append(
+                {
+                    "type": "ordered",
+                    "number": number,
+                    "text": m.group(1).strip(),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
         # Quote
         # -------------------------
 
@@ -166,14 +218,41 @@ def _parse_markdown_blocks(
         # Normal paragraph
         # -------------------------
 
+        paragraph_lines = [stripped]
+
+        j = i + 1
+
+        while j < len(lines):
+            next_line = lines[j].strip()
+
+            if not next_line:
+                break
+
+            if (
+                _HEADING_RE.match(next_line)
+                or _IMAGE_RE.match(next_line)
+                or _BULLET_RE.match(next_line)
+                or _ORDERED_RE.match(next_line)
+                or next_line.startswith(">")
+                or next_line.startswith("```")
+                or _HORIZONTAL_RULE_RE.match(next_line)
+            ):
+                break
+
+            paragraph_lines.append(next_line)
+            j += 1
+
         blocks.append(
             {
                 "type": "paragraph",
-                "text": stripped,
+                "text": " ".join(
+                    paragraph_lines
+                ),
             }
         )
 
-        i += 1
+        i = j
+        continue
 
     # Handle an unclosed code block.
     if in_code and code_lines:
@@ -183,6 +262,340 @@ def _parse_markdown_blocks(
                 "text": "\n".join(code_lines),
             }
         )
+
+    return blocks
+
+
+# -----------------------------
+# PDF-specific Markdown parser
+# -----------------------------
+
+_TABLE_SEPARATOR_RE = re.compile(
+    r"^\s*:?-{3,}:?\s*$"
+)
+
+
+def _is_table_separator_row(
+    line: str,
+) -> bool:
+    if "|" not in line:
+        return False
+
+    cells = [
+        cell.strip()
+        for cell in line.strip().strip("|").split("|")
+    ]
+
+    if not cells:
+        return False
+
+    return all(
+        _TABLE_SEPARATOR_RE.match(cell)
+        for cell in cells
+    )
+
+
+def _split_table_row(
+    line: str,
+) -> List[str]:
+    line = line.strip()
+
+    if line.startswith("|"):
+        line = line[1:]
+
+    if line.endswith("|"):
+        line = line[:-1]
+
+    return [
+        cell.strip()
+        for cell in line.split("|")
+    ]
+
+
+def _parse_pdf_markdown_blocks(
+    md_text: str,
+) -> List[dict]:
+    """
+    PDF-focused Markdown parser.
+
+    Adds support for:
+    - tables
+    - ordered lists
+    - horizontal rules
+    - multi-line paragraphs
+
+    The DOCX parser remains separate so existing DOCX output
+    behavior is preserved.
+    """
+
+    lines = (md_text or "").splitlines()
+
+    blocks: List[dict] = []
+
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if not stripped:
+            i += 1
+            continue
+
+        # -------------------------
+        # Fenced code
+        # -------------------------
+
+        if stripped.startswith("```"):
+            code_lines: List[str] = []
+
+            i += 1
+
+            while i < len(lines):
+                current = lines[i]
+
+                if current.strip().startswith("```"):
+                    break
+
+                code_lines.append(current)
+                i += 1
+
+            blocks.append(
+                {
+                    "type": "code",
+                    "text": "\n".join(code_lines),
+                }
+            )
+
+            if i < len(lines):
+                i += 1
+
+            continue
+
+        # -------------------------
+        # Horizontal rule
+        # -------------------------
+
+        if _HORIZONTAL_RULE_RE.match(stripped):
+            blocks.append(
+                {
+                    "type": "rule",
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Table
+        # -------------------------
+
+        if (
+            i + 1 < len(lines)
+            and "|" in stripped
+            and _is_table_separator_row(
+                lines[i + 1].strip()
+            )
+        ):
+            header = _split_table_row(
+                lines[i]
+            )
+
+            i += 2
+
+            rows: List[List[str]] = []
+
+            while i < len(lines):
+                current = lines[i].strip()
+
+                if not current or "|" not in current:
+                    break
+
+                rows.append(
+                    _split_table_row(
+                        current
+                    )
+                )
+
+                i += 1
+
+            blocks.append(
+                {
+                    "type": "table",
+                    "header": header,
+                    "rows": rows,
+                }
+            )
+
+            continue
+
+        # -------------------------
+        # Image
+        # -------------------------
+
+        m = _IMAGE_RE.match(stripped)
+
+        if m:
+            blocks.append(
+                {
+                    "type": "image",
+                    "alt": m.group("alt"),
+                    "src": m.group("src"),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Heading
+        # -------------------------
+
+        m = _HEADING_RE.match(stripped)
+
+        if m:
+            blocks.append(
+                {
+                    "type": "heading",
+                    "level": len(m.group(1)),
+                    "text": m.group(2).strip(),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Bullet
+        # -------------------------
+
+        m = _BULLET_RE.match(stripped)
+
+        if m:
+            blocks.append(
+                {
+                    "type": "bullet",
+                    "text": m.group(1).strip(),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Ordered list
+        # -------------------------
+
+        m = _ORDERED_RE.match(stripped)
+
+        if m:
+            number_match = re.match(
+                r"^(\d+)",
+                stripped,
+            )
+
+            number = (
+                number_match.group(1)
+                if number_match
+                else "1"
+            )
+
+            blocks.append(
+                {
+                    "type": "ordered",
+                    "number": number,
+                    "text": m.group(1).strip(),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Quote
+        # -------------------------
+
+        if stripped.startswith(">"):
+            blocks.append(
+                {
+                    "type": "quote",
+                    "text": stripped.lstrip("> ").strip(),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Caption
+        # -------------------------
+
+        if (
+            len(stripped) > 1
+            and stripped.startswith("*")
+            and stripped.endswith("*")
+            and not stripped.startswith("**")
+        ):
+            blocks.append(
+                {
+                    "type": "caption",
+                    "text": stripped.strip("*"),
+                }
+            )
+
+            i += 1
+            continue
+
+        # -------------------------
+        # Paragraph
+        # -------------------------
+
+        paragraph_lines = [stripped]
+
+        j = i + 1
+
+        while j < len(lines):
+            next_line = lines[j].strip()
+
+            if not next_line:
+                break
+
+            if (
+                _HEADING_RE.match(next_line)
+                or _IMAGE_RE.match(next_line)
+                or _BULLET_RE.match(next_line)
+                or _ORDERED_RE.match(next_line)
+                or next_line.startswith(">")
+                or next_line.startswith("```")
+                or _HORIZONTAL_RULE_RE.match(next_line)
+            ):
+                break
+
+            if (
+                j + 1 < len(lines)
+                and "|" in next_line
+                and _is_table_separator_row(
+                    lines[j + 1].strip()
+                )
+            ):
+                break
+
+            paragraph_lines.append(
+                next_line
+            )
+
+            j += 1
+
+        blocks.append(
+            {
+                "type": "paragraph",
+                "text": " ".join(
+                    paragraph_lines
+                ),
+            }
+        )
+
+        i = j
 
     return blocks
 
@@ -537,9 +950,6 @@ def _to_latin1_safe(
 ) -> str:
     """
     Normalize text for fpdf2's built-in Helvetica/Times fonts.
-
-    Characters that cannot be represented are replaced rather than
-    causing PDF generation to fail.
     """
 
     text = text or ""
@@ -565,11 +975,6 @@ def _resolve_image_path(
 ) -> Optional[Path]:
     """
     Resolve a Markdown image path safely.
-
-    Supports:
-    - absolute filesystem paths
-    - relative paths
-    - file:// paths
     """
 
     src = (src or "").strip()
@@ -589,22 +994,61 @@ def _resolve_image_path(
             base_dir / path
         ).resolve()
 
-    if resolved.exists() and resolved.is_file():
+    if (
+        resolved.exists()
+        and resolved.is_file()
+    ):
         return resolved
 
     return None
 
 
+# -----------------------------
+# PDF document class
+# -----------------------------
+
+def _create_pdf_class():
+    from fpdf import FPDF
+
+    class BlogForgePDF(FPDF):
+        def footer(self):
+            self.set_y(-12)
+
+            self.set_font(
+                "Helvetica",
+                "",
+                8,
+            )
+
+            self.set_text_color(
+                110,
+                110,
+                110,
+            )
+
+            self.cell(
+                0,
+                5,
+                f"Page {self.page_no()}",
+                align="C",
+            )
+
+            self.set_text_color(
+                0,
+                0,
+                0,
+            )
+
+    return BlogForgePDF
+
+
 def _pdf_write_inline(
     pdf,
     text: str,
-    font_size: float = 11,
+    font_size: float = 10.5,
 ):
     """
     Write inline Markdown while preserving basic formatting.
-
-    This deliberately uses FPDF.write() instead of write_html(), which
-    gives much more predictable wrapping and page handling.
     """
 
     for token in _iter_inline_tokens(text):
@@ -624,11 +1068,6 @@ def _pdf_write_inline(
                 font_size,
             )
 
-            pdf.write(
-                6,
-                safe_text,
-            )
-
         elif token_type == "italic":
             pdf.set_font(
                 "Helvetica",
@@ -636,21 +1075,11 @@ def _pdf_write_inline(
                 font_size,
             )
 
-            pdf.write(
-                6,
-                safe_text,
-            )
-
         elif token_type == "code":
             pdf.set_font(
                 "Courier",
                 "",
-                font_size - 1,
-            )
-
-            pdf.write(
-                6,
-                safe_text,
+                max(font_size - 1, 8),
             )
 
         elif token_type == "link":
@@ -660,11 +1089,6 @@ def _pdf_write_inline(
                 font_size,
             )
 
-            pdf.write(
-                6,
-                safe_text,
-            )
-
         else:
             pdf.set_font(
                 "Helvetica",
@@ -672,10 +1096,63 @@ def _pdf_write_inline(
                 font_size,
             )
 
-            pdf.write(
-                6,
-                safe_text,
-            )
+        pdf.write(
+            5.8,
+            safe_text,
+        )
+
+
+def _pdf_add_title(
+    pdf,
+    text: str,
+):
+    """
+    Render the first H1 as a document title.
+    """
+
+    pdf.ln(8)
+
+    pdf.set_font(
+        "Helvetica",
+        "B",
+        23,
+    )
+
+    pdf.set_text_color(
+        20,
+        20,
+        20,
+    )
+
+    available_width = (
+        pdf.w
+        - pdf.l_margin
+        - pdf.r_margin
+    )
+
+    pdf.multi_cell(
+        available_width,
+        10,
+        _to_latin1_safe(text),
+        align="L",
+    )
+
+    pdf.ln(3)
+
+    pdf.set_draw_color(
+        180,
+        180,
+        180,
+    )
+
+    pdf.line(
+        pdf.l_margin,
+        pdf.get_y(),
+        pdf.w - pdf.r_margin,
+        pdf.get_y(),
+    )
+
+    pdf.ln(9)
 
 
 def _pdf_add_paragraph(
@@ -685,16 +1162,22 @@ def _pdf_add_paragraph(
     pdf.set_font(
         "Helvetica",
         "",
-        11,
+        10.5,
+    )
+
+    pdf.set_text_color(
+        35,
+        35,
+        35,
     )
 
     _pdf_write_inline(
         pdf,
         text,
-        11,
+        10.5,
     )
 
-    pdf.ln(8)
+    pdf.ln(7)
 
 
 def _pdf_add_heading(
@@ -708,34 +1191,60 @@ def _pdf_add_heading(
     )
 
     sizes = {
-        1: 20,
-        2: 17,
-        3: 15,
-        4: 13,
-        5: 12,
-        6: 11,
+        1: 19,
+        2: 15,
+        3: 13,
+        4: 11.5,
+        5: 10.5,
+        6: 10,
     }
 
-    size = sizes[level]
+    before_spacing = {
+        1: 10,
+        2: 9,
+        3: 7,
+        4: 6,
+        5: 5,
+        6: 5,
+    }
 
-    # Keep headings together with at least some following content.
-    if pdf.get_y() > 245:
+    after_spacing = {
+        1: 5,
+        2: 4,
+        3: 4,
+        4: 3,
+        5: 3,
+        6: 3,
+    }
+
+    # Avoid placing a heading at the very bottom of a page.
+    if pdf.get_y() > 255:
         pdf.add_page()
+
+    pdf.ln(
+        before_spacing[level]
+    )
 
     pdf.set_font(
         "Helvetica",
         "B",
-        size,
+        sizes[level],
+    )
+
+    pdf.set_text_color(
+        25,
+        25,
+        25,
     )
 
     _pdf_write_inline(
         pdf,
         text,
-        size,
+        sizes[level],
     )
 
     pdf.ln(
-        5 if level <= 2 else 4
+        after_spacing[level]
     )
 
 
@@ -743,50 +1252,97 @@ def _pdf_add_bullet(
     pdf,
     text: str,
 ):
-    """
-    Render a bullet using FPDF primitives rather than HTML.
-    """
-
     left_margin = pdf.l_margin
-    bullet_indent = 6
 
     pdf.set_x(
-        left_margin
+        left_margin + 2
     )
 
     pdf.set_font(
         "Helvetica",
         "",
-        11,
+        10.5,
     )
 
     pdf.write(
-        6,
+        5.8,
         "- ",
     )
 
     pdf.set_x(
-        left_margin + bullet_indent
+        left_margin + 8
     )
 
     _pdf_write_inline(
         pdf,
         text,
-        11,
+        10.5,
     )
 
-    pdf.ln(7)
+    pdf.ln(6)
+
+
+def _pdf_add_ordered(
+    pdf,
+    number: str,
+    text: str,
+):
+    left_margin = pdf.l_margin
+
+    pdf.set_x(
+        left_margin + 1
+    )
+
+    pdf.set_font(
+        "Helvetica",
+        "B",
+        10.5,
+    )
+
+    pdf.write(
+        5.8,
+        f"{number}. ",
+    )
+
+    pdf.set_font(
+        "Helvetica",
+        "",
+        10.5,
+    )
+
+    pdf.set_x(
+        left_margin + 10
+    )
+
+    _pdf_write_inline(
+        pdf,
+        text,
+        10.5,
+    )
+
+    pdf.ln(6)
 
 
 def _pdf_add_quote(
     pdf,
     text: str,
 ):
-    """
-    Render block quotes with a simple indentation.
-    """
-
     left_margin = pdf.l_margin
+
+    y = pdf.get_y()
+
+    pdf.set_draw_color(
+        150,
+        150,
+        150,
+    )
+
+    pdf.line(
+        left_margin + 1,
+        y,
+        left_margin + 1,
+        y + 9,
+    )
 
     pdf.set_x(
         left_margin + 6
@@ -795,13 +1351,13 @@ def _pdf_add_quote(
     pdf.set_font(
         "Helvetica",
         "I",
-        11,
+        10,
     )
 
     _pdf_write_inline(
         pdf,
         text,
-        11,
+        10,
     )
 
     pdf.ln(8)
@@ -817,8 +1373,16 @@ def _pdf_add_caption(
         9,
     )
 
+    pdf.set_text_color(
+        100,
+        100,
+        100,
+    )
+
     available_width = (
-        pdf.w - pdf.l_margin - pdf.r_margin
+        pdf.w
+        - pdf.l_margin
+        - pdf.r_margin
     )
 
     pdf.multi_cell(
@@ -828,7 +1392,34 @@ def _pdf_add_caption(
         align="C",
     )
 
+    pdf.set_text_color(
+        35,
+        35,
+        35,
+    )
+
     pdf.ln(4)
+
+
+def _pdf_add_rule(
+    pdf,
+):
+    pdf.ln(3)
+
+    pdf.set_draw_color(
+        190,
+        190,
+        190,
+    )
+
+    pdf.line(
+        pdf.l_margin,
+        pdf.get_y(),
+        pdf.w - pdf.r_margin,
+        pdf.get_y(),
+    )
+
+    pdf.ln(6)
 
 
 def _pdf_add_code(
@@ -836,10 +1427,7 @@ def _pdf_add_code(
     text: str,
 ):
     """
-    Render code blocks using Courier.
-
-    multi_cell() is used here because code blocks can contain long
-    lines and multiple lines.
+    Render code blocks as distinct technical-document blocks.
     """
 
     safe_text = _to_latin1_safe(
@@ -849,29 +1437,275 @@ def _pdf_add_code(
     if not safe_text:
         return
 
+    lines = safe_text.splitlines()
+
+    # Estimate required height.
+    line_height = 4.4
+    padding = 7
+    estimated_height = (
+        max(len(lines), 1)
+        * line_height
+        + padding
+    )
+
+    # Keep a reasonably sized code block together when possible.
+    if (
+        pdf.get_y()
+        + min(estimated_height, 55)
+        > pdf.page_break_trigger
+    ):
+        pdf.add_page()
+
+    x = pdf.l_margin
+    y = pdf.get_y()
+
+    width = (
+        pdf.w
+        - pdf.l_margin
+        - pdf.r_margin
+    )
+
+    # Light technical-document background.
+    pdf.set_fill_color(
+        245,
+        246,
+        248,
+    )
+
+    pdf.set_draw_color(
+        220,
+        222,
+        226,
+    )
+
+    # Render background block first.
+    block_height = min(
+        estimated_height,
+        pdf.h - pdf.b_margin - y,
+    )
+
+    if block_height > 0:
+        pdf.rect(
+            x,
+            y,
+            width,
+            block_height,
+            style="DF",
+        )
+
+    pdf.set_xy(
+        x + 4,
+        y + 4,
+    )
+
     pdf.set_font(
         "Courier",
         "",
-        8.5,
+        8.2,
     )
 
-    available_width = (
-        pdf.w - pdf.l_margin - pdf.r_margin
+    pdf.set_text_color(
+        35,
+        35,
+        35,
     )
 
-    lines = safe_text.splitlines()
+    text_width = width - 8
 
     for line in lines:
         if not line:
             line = " "
 
+        # Break extremely long source-code lines rather than allowing
+        # them to disappear outside the page.
+        safe_line = line
+
         pdf.multi_cell(
-            available_width,
-            4.5,
-            line,
+            text_width,
+            line_height,
+            safe_line,
         )
 
-    pdf.ln(3)
+    pdf.set_y(
+        max(
+            pdf.get_y() + 4,
+            y + block_height + 3,
+        )
+    )
+
+    pdf.set_x(
+        pdf.l_margin
+    )
+
+
+def _pdf_add_table(
+    pdf,
+    header: List[str],
+    rows: List[List[str]],
+):
+    """
+    Render Markdown tables using fpdf2's native table support.
+
+    This gives the PDF the structured table appearance expected in
+    technical documentation.
+    """
+
+    all_rows = [header] + rows
+
+    if not header:
+        return
+
+    column_count = len(header)
+
+    if column_count == 0:
+        return
+
+    normalized_rows = []
+
+    for row in all_rows:
+        normalized = list(row)
+
+        if len(normalized) < column_count:
+            normalized.extend(
+                [""] * (
+                    column_count
+                    - len(normalized)
+                )
+            )
+
+        elif len(normalized) > column_count:
+            normalized = normalized[
+                :column_count
+            ]
+
+        normalized_rows.append(
+            normalized
+        )
+
+    # Estimate relative column widths from content length.
+    weights = []
+
+    for column_index in range(
+        column_count
+    ):
+        max_length = 1
+
+        for row in normalized_rows:
+            value = _to_latin1_safe(
+                row[column_index]
+            )
+
+            max_length = max(
+                max_length,
+                min(len(value), 35),
+            )
+
+        weights.append(
+            float(max_length)
+        )
+
+    total_weight = sum(weights)
+
+    if total_weight <= 0:
+        weights = [
+            1.0
+            for _ in range(column_count)
+        ]
+        total_weight = float(
+            column_count
+        )
+
+    # Prevent very narrow columns.
+    min_weight = total_weight * 0.08
+
+    weights = [
+        max(
+            weight,
+            min_weight,
+        )
+        for weight in weights
+    ]
+
+    try:
+        pdf.set_font(
+            "Helvetica",
+            "",
+            8.8,
+        )
+
+        pdf.set_text_color(
+            35,
+            35,
+            35,
+        )
+
+        with pdf.table(
+            width=pdf.epw,
+            col_widths=weights,
+            line_height=6,
+            text_align="LEFT",
+            borders_layout="INTERNAL",
+        ) as table:
+            for row_index, row_data in enumerate(
+                normalized_rows
+            ):
+                row = table.row()
+
+                for value in row_data:
+                    cell = row.cell(
+                        _to_latin1_safe(
+                            value
+                        )
+                    )
+
+                    if row_index == 0:
+                        cell.text = (
+                            _to_latin1_safe(
+                                value
+                            )
+                        )
+
+        pdf.ln(5)
+
+    except Exception:
+        # Safe fallback if a particular fpdf2 build has different
+        # table support.
+        pdf.set_font(
+            "Helvetica",
+            "",
+            8.5,
+        )
+
+        for row_index, row_data in enumerate(
+            normalized_rows
+        ):
+            if row_index == 0:
+                pdf.set_font(
+                    "Helvetica",
+                    "B",
+                    8.5,
+                )
+            else:
+                pdf.set_font(
+                    "Helvetica",
+                    "",
+                    8.5,
+                )
+
+            text = " | ".join(
+                _to_latin1_safe(
+                    value
+                )
+                for value in row_data
+            )
+
+            pdf.multi_cell(
+                pdf.epw,
+                5,
+                text,
+            )
+
+        pdf.ln(4)
 
 
 def _pdf_add_image(
@@ -881,11 +1715,7 @@ def _pdf_add_image(
     base_dir: Path,
 ):
     """
-    Add a local image to the PDF.
-
-    Remote images are intentionally downloaded first because FPDF's
-    image handling is filesystem-oriented and direct HTTP URLs are
-    unreliable.
+    Add a local or remote image to the PDF.
     """
 
     image_path = _resolve_image_path(
@@ -896,11 +1726,15 @@ def _pdf_add_image(
     temporary_path = None
 
     try:
-        if image_path is None and (
-            src.startswith("http://")
-            or src.startswith("https://")
+        if (
+            image_path is None
+            and (
+                src.startswith("http://")
+                or src.startswith("https://")
+            )
         ):
             import requests
+            import tempfile
 
             response = requests.get(
                 src,
@@ -910,22 +1744,19 @@ def _pdf_add_image(
             response.raise_for_status()
 
             suffix = (
-                Path(src.split("?")[0])
-                .suffix
+                Path(
+                    src.split("?")[0]
+                ).suffix
             )
 
             if not suffix:
                 suffix = ".img"
-
-            import tempfile
 
             fd, temporary_name = (
                 tempfile.mkstemp(
                     suffix=suffix
                 )
             )
-
-            import os
 
             os.close(fd)
 
@@ -950,7 +1781,8 @@ def _pdf_add_image(
                 0,
                 5,
                 _to_latin1_safe(
-                    f"[Image not found: {alt or src}]"
+                    f"[Image not found: "
+                    f"{alt or src}]"
                 ),
             )
 
@@ -958,8 +1790,7 @@ def _pdf_add_image(
 
             return
 
-        # Leave enough space for the image.
-        if pdf.get_y() > 235:
+        if pdf.get_y() > 230:
             pdf.add_page()
 
         available_width = (
@@ -968,11 +1799,9 @@ def _pdf_add_image(
             - pdf.r_margin
         )
 
-        # Use the image's actual dimensions to calculate a sensible
-        # display size while keeping the image inside the page.
-        from PIL import Image
-
         try:
+            from PIL import Image
+
             with Image.open(
                 image_path
             ) as img:
@@ -999,8 +1828,7 @@ def _pdf_add_image(
                 * aspect_ratio
             )
 
-            # Prevent extremely tall images from consuming the page.
-            max_height = 230
+            max_height = 220
 
             if display_height > max_height:
                 display_height = max_height
@@ -1023,8 +1851,6 @@ def _pdf_add_image(
             )
 
         except ImportError:
-            # Pillow is not required by requirements.txt.
-            # FPDF itself can still determine image dimensions.
             pdf.image(
                 str(image_path),
                 x=pdf.l_margin,
@@ -1037,7 +1863,6 @@ def _pdf_add_image(
             pdf.ln(8)
 
         except Exception:
-            # Last safe image fallback.
             pdf.image(
                 str(image_path),
                 x=pdf.l_margin,
@@ -1082,26 +1907,28 @@ def markdown_to_pdf_bytes(
     base_dir: Optional[Path] = None,
 ) -> bytes:
     """
-    Convert Markdown to a properly structured PDF.
+    Convert Markdown to a professional technical-document PDF.
 
-    Unlike the previous implementation, this does NOT use
-    fpdf2.write_html().
+    The PDF renderer is intentionally independent from the DOCX
+    renderer so existing DOCX output is not changed.
 
-    This gives explicit control over:
+    Supports:
+    - document title
     - headings
     - paragraphs
-    - lists
-    - quotes
+    - unordered lists
+    - ordered lists
+    - block quotes
     - code blocks
+    - Markdown tables
+    - horizontal rules
     - images
-    - page breaks
-    - inline formatting
-    - long content
-
-    Raises ImportError if fpdf2 isn't installed.
+    - inline bold / italic / code / links
+    - page numbering
+    - automatic page breaks
     """
 
-    from fpdf import FPDF
+    BlogForgePDF = _create_pdf_class()
 
     base_dir = (
         Path(base_dir)
@@ -1111,7 +1938,7 @@ def markdown_to_pdf_bytes(
 
     base_dir = base_dir.resolve()
 
-    pdf = FPDF(
+    pdf = BlogForgePDF(
         orientation="P",
         unit="mm",
         format="A4",
@@ -1130,26 +1957,49 @@ def markdown_to_pdf_bytes(
 
     pdf.add_page()
 
-    # Default body font.
     pdf.set_font(
         "Helvetica",
         "",
-        11,
+        10.5,
     )
 
-    blocks = _parse_markdown_blocks(
+    pdf.set_text_color(
+        35,
+        35,
+        35,
+    )
+
+    blocks = _parse_pdf_markdown_blocks(
         md_text or ""
     )
+
+    title_rendered = False
 
     for block in blocks:
         btype = block["type"]
 
         try:
             # -------------------------
+            # Title
+            # -------------------------
+
+            if (
+                btype == "heading"
+                and block["level"] == 1
+                and not title_rendered
+            ):
+                _pdf_add_title(
+                    pdf,
+                    block["text"],
+                )
+
+                title_rendered = True
+
+            # -------------------------
             # Heading
             # -------------------------
 
-            if btype == "heading":
+            elif btype == "heading":
                 _pdf_add_heading(
                     pdf,
                     block["text"],
@@ -1173,6 +2023,17 @@ def markdown_to_pdf_bytes(
             elif btype == "bullet":
                 _pdf_add_bullet(
                     pdf,
+                    block["text"],
+                )
+
+            # -------------------------
+            # Ordered
+            # -------------------------
+
+            elif btype == "ordered":
+                _pdf_add_ordered(
+                    pdf,
+                    block["number"],
                     block["text"],
                 )
 
@@ -1207,6 +2068,26 @@ def markdown_to_pdf_bytes(
                 )
 
             # -------------------------
+            # Table
+            # -------------------------
+
+            elif btype == "table":
+                _pdf_add_table(
+                    pdf,
+                    block["header"],
+                    block["rows"],
+                )
+
+            # -------------------------
+            # Horizontal rule
+            # -------------------------
+
+            elif btype == "rule":
+                _pdf_add_rule(
+                    pdf,
+                )
+
+            # -------------------------
             # Image
             # -------------------------
 
@@ -1214,7 +2095,10 @@ def markdown_to_pdf_bytes(
                 _pdf_add_image(
                     pdf,
                     block["src"],
-                    block.get("alt", ""),
+                    block.get(
+                        "alt",
+                        "",
+                    ),
                     base_dir,
                 )
 
@@ -1246,9 +2130,6 @@ def markdown_to_pdf_bytes(
     return bytes(
         pdf.output()
     )
-
-
-
 
 
 
